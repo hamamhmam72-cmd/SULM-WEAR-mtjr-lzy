@@ -94,6 +94,11 @@ export const createOrderBodyCustomerNameMin = 2;
 
 export const createOrderBodyPhoneMin = 8;
 
+export const createOrderBodyWalletCreditToUseMin = 0;
+export const createOrderBodyWalletCreditToUseMax = 500;
+
+export const createOrderBodyLoyaltyVerificationTokenMax = 1000;
+
 
 
 
@@ -104,6 +109,8 @@ export const CreateOrderBody = zod.object({
   "city": zod.string(),
   "address": zod.string(),
   "paymentMethod": zod.enum(['cod', 'prepaid']),
+  "walletCreditToUse": zod.number().min(createOrderBodyWalletCreditToUseMin).max(createOrderBodyWalletCreditToUseMax).optional(),
+  "loyaltyVerificationToken": zod.string().max(createOrderBodyLoyaltyVerificationTokenMax).optional(),
   "items": zod.array(zod.object({
   "productSlug": zod.string(),
   "size": zod.string(),
@@ -121,6 +128,10 @@ export const CreateOrderResponse = zod.object({
   "paymentMethod": zod.string(),
   "status": zod.enum(['new', 'processing', 'packed', 'ready_to_ship', 'shipped']),
   "total": zod.number(),
+  "subtotal": zod.number(),
+  "bundleDiscount": zod.number(),
+  "walletCreditUsed": zod.number(),
+  "loyaltyPointsEarned": zod.number().int(),
   "items": zod.array(zod.object({
   "productName": zod.string(),
   "productSlug": zod.string(),
@@ -151,6 +162,10 @@ export const LookupOrderResponse = zod.object({
   "paymentMethod": zod.string(),
   "status": zod.enum(['new', 'processing', 'packed', 'ready_to_ship', 'shipped']),
   "total": zod.number(),
+  "subtotal": zod.number(),
+  "bundleDiscount": zod.number(),
+  "walletCreditUsed": zod.number(),
+  "loyaltyPointsEarned": zod.number().int(),
   "items": zod.array(zod.object({
   "productName": zod.string(),
   "productSlug": zod.string(),
@@ -159,6 +174,284 @@ export const LookupOrderResponse = zod.object({
   "unitPrice": zod.number()
 })),
   "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Look up loyalty balance
+ */
+export const lookupLoyaltyBodyOrderNumberMin = 6;
+export const lookupLoyaltyBodyOrderNumberMax = 32;
+
+export const lookupLoyaltyBodyPhoneMin = 8;
+export const lookupLoyaltyBodyPhoneMax = 24;
+
+
+
+export const LookupLoyaltyBody = zod.object({
+  "orderNumber": zod.string().min(lookupLoyaltyBodyOrderNumberMin).max(lookupLoyaltyBodyOrderNumberMax),
+  "phone": zod.string().min(lookupLoyaltyBodyPhoneMin).max(lookupLoyaltyBodyPhoneMax)
+})
+
+export const LookupLoyaltyResponse = zod.object({
+  "maskedPhone": zod.string(),
+  "points": zod.number().int(),
+  "walletCredit": zod.number(),
+  "pendingPoints": zod.number().int(),
+  "tier": zod.enum(['member', 'silver', 'black']),
+  "nextTierAt": zod.number().int().nullable(),
+  "verificationToken": zod.string()
+})
+
+
+/**
+ * @summary Convert loyalty points to wallet credit
+ */
+export const redeemLoyaltyPointsBodyVerificationTokenMin = 20;
+export const redeemLoyaltyPointsBodyVerificationTokenMax = 1000;
+
+export const redeemLoyaltyPointsBodyPointsMin = 100;
+export const redeemLoyaltyPointsBodyPointsMax = 1000;
+export const redeemLoyaltyPointsBodyPointsMultipleOf = 100;
+
+
+
+export const RedeemLoyaltyPointsBody = zod.object({
+  "verificationToken": zod.string().min(redeemLoyaltyPointsBodyVerificationTokenMin).max(redeemLoyaltyPointsBodyVerificationTokenMax),
+  "points": zod.number().int().min(redeemLoyaltyPointsBodyPointsMin).max(redeemLoyaltyPointsBodyPointsMax).multipleOf(redeemLoyaltyPointsBodyPointsMultipleOf)
+})
+
+export const RedeemLoyaltyPointsResponse = zod.object({
+  "creditAdded": zod.number(),
+  "profile": zod.object({
+  "maskedPhone": zod.string(),
+  "points": zod.number().int(),
+  "walletCredit": zod.number(),
+  "pendingPoints": zod.number().int(),
+  "tier": zod.enum(['member', 'silver', 'black']),
+  "nextTierAt": zod.number().int().nullable(),
+  "verificationToken": zod.string()
+})
+})
+
+
+/**
+ * @summary Submit a verified purchase review for points
+ */
+export const createLoyaltyReviewBodyOrderNumberMin = 6;
+export const createLoyaltyReviewBodyOrderNumberMax = 32;
+
+export const createLoyaltyReviewBodyPhoneMin = 8;
+export const createLoyaltyReviewBodyPhoneMax = 24;
+
+export const createLoyaltyReviewBodyProductSlugMax = 120;
+
+export const createLoyaltyReviewBodyRatingMax = 5;
+
+export const createLoyaltyReviewBodyReviewMin = 15;
+export const createLoyaltyReviewBodyReviewMax = 800;
+
+
+
+export const CreateLoyaltyReviewBody = zod.object({
+  "orderNumber": zod.string().min(createLoyaltyReviewBodyOrderNumberMin).max(createLoyaltyReviewBodyOrderNumberMax),
+  "phone": zod.string().min(createLoyaltyReviewBodyPhoneMin).max(createLoyaltyReviewBodyPhoneMax),
+  "productSlug": zod.string().min(1).max(createLoyaltyReviewBodyProductSlugMax),
+  "rating": zod.number().int().min(1).max(createLoyaltyReviewBodyRatingMax),
+  "review": zod.string().min(createLoyaltyReviewBodyReviewMin).max(createLoyaltyReviewBodyReviewMax)
+})
+
+export const CreateLoyaltyReviewResponse = zod.object({
+  "id": zod.number().int(),
+  "status": zod.enum(['approved']),
+  "pointsEarned": zod.number().int(),
+  "createdAt": zod.string(),
+  "profile": zod.object({
+  "maskedPhone": zod.string(),
+  "points": zod.number().int(),
+  "walletCredit": zod.number(),
+  "pendingPoints": zod.number().int(),
+  "tier": zod.enum(['member', 'silver', 'black']),
+  "nextTierAt": zod.number().int().nullable(),
+  "verificationToken": zod.string()
+})
+})
+
+
+/**
+ * @summary Request a return or exchange
+ */
+export const createReturnRequestBodyOrderNumberMin = 6;
+export const createReturnRequestBodyOrderNumberMax = 32;
+
+export const createReturnRequestBodyPhoneMin = 8;
+export const createReturnRequestBodyPhoneMax = 24;
+
+export const createReturnRequestBodyProductSlugMax = 120;
+
+export const createReturnRequestBodyReasonMin = 5;
+export const createReturnRequestBodyReasonMax = 500;
+
+export const createReturnRequestBodyRequestedSizeMax = 8;
+
+
+
+export const CreateReturnRequestBody = zod.object({
+  "orderNumber": zod.string().min(createReturnRequestBodyOrderNumberMin).max(createReturnRequestBodyOrderNumberMax),
+  "phone": zod.string().min(createReturnRequestBodyPhoneMin).max(createReturnRequestBodyPhoneMax),
+  "type": zod.enum(['return', 'exchange']),
+  "productSlug": zod.string().min(1).max(createReturnRequestBodyProductSlugMax),
+  "reason": zod.string().min(createReturnRequestBodyReasonMin).max(createReturnRequestBodyReasonMax),
+  "requestedSize": zod.string().max(createReturnRequestBodyRequestedSizeMax).nullable()
+})
+
+export const CreateReturnRequestResponse = zod.object({
+  "id": zod.number().int(),
+  "requestNumber": zod.string(),
+  "orderNumber": zod.string(),
+  "type": zod.enum(['return', 'exchange']),
+  "productSlug": zod.string(),
+  "reason": zod.string(),
+  "requestedSize": zod.string().nullable(),
+  "status": zod.enum(['requested', 'approved', 'collected', 'completed', 'declined']),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Look up return and exchange requests
+ */
+export const lookupReturnRequestsBodyOrderNumberMin = 6;
+export const lookupReturnRequestsBodyOrderNumberMax = 32;
+
+export const lookupReturnRequestsBodyPhoneMin = 8;
+export const lookupReturnRequestsBodyPhoneMax = 24;
+
+
+
+export const LookupReturnRequestsBody = zod.object({
+  "orderNumber": zod.string().min(lookupReturnRequestsBodyOrderNumberMin).max(lookupReturnRequestsBodyOrderNumberMax),
+  "phone": zod.string().min(lookupReturnRequestsBodyPhoneMin).max(lookupReturnRequestsBodyPhoneMax)
+})
+
+export const LookupReturnRequestsResponseItem = zod.object({
+  "id": zod.number().int(),
+  "requestNumber": zod.string(),
+  "orderNumber": zod.string(),
+  "type": zod.enum(['return', 'exchange']),
+  "productSlug": zod.string(),
+  "reason": zod.string(),
+  "requestedSize": zod.string().nullable(),
+  "status": zod.enum(['requested', 'approved', 'collected', 'completed', 'declined']),
+  "createdAt": zod.string()
+})
+export const LookupReturnRequestsResponse = zod.array(LookupReturnRequestsResponseItem)
+
+
+/**
+ * @summary Calculate cart and bundle discounts
+ */
+
+export const quoteBundleBodyItemsMax = 20;
+
+
+
+export const QuoteBundleBody = zod.object({
+  "items": zod.array(zod.object({
+  "productSlug": zod.string(),
+  "size": zod.string(),
+  "quantity": zod.number().int().min(1)
+})).min(1).max(quoteBundleBodyItemsMax)
+})
+
+export const QuoteBundleResponse = zod.object({
+  "subtotal": zod.number(),
+  "discount": zod.number(),
+  "total": zod.number(),
+  "appliedRule": zod.string().nullable()
+})
+
+
+/**
+ * @summary Schedule a consented cart reminder
+ */
+export const subscribeCartReminderBodyPhoneMin = 8;
+export const subscribeCartReminderBodyPhoneMax = 24;
+
+
+export const subscribeCartReminderBodyItemsMax = 20;
+
+
+
+export const SubscribeCartReminderBody = zod.object({
+  "phone": zod.string().min(subscribeCartReminderBodyPhoneMin).max(subscribeCartReminderBodyPhoneMax),
+  "consent": zod.literal(true),
+  "channel": zod.enum(['in_app']),
+  "items": zod.array(zod.object({
+  "productSlug": zod.string(),
+  "size": zod.string(),
+  "quantity": zod.number().int().min(1)
+})).min(1).max(subscribeCartReminderBodyItemsMax)
+})
+
+export const SubscribeCartReminderResponse = zod.object({
+  "status": zod.enum(['scheduled', 'already_scheduled']),
+  "reminderAt": zod.string(),
+  "nextEligibleAt": zod.string(),
+  "reminderToken": zod.string()
+})
+
+
+/**
+ * @summary Cancel cart reminders for a phone number
+ */
+export const unsubscribeCartReminderBodyReminderTokenMin = 20;
+export const unsubscribeCartReminderBodyReminderTokenMax = 100;
+
+
+
+export const UnsubscribeCartReminderBody = zod.object({
+  "reminderToken": zod.string().min(unsubscribeCartReminderBodyReminderTokenMin).max(unsubscribeCartReminderBodyReminderTokenMax)
+})
+
+export const UnsubscribeCartReminderResponse = zod.object({
+  "unsubscribed": zod.boolean()
+})
+
+
+/**
+ * @summary Check an in-app cart reminder
+ */
+export const getCartReminderPathTokenMin = 20;
+export const getCartReminderPathTokenMax = 100;
+
+
+
+export const GetCartReminderParams = zod.object({
+  "token": zod.coerce.string().min(getCartReminderPathTokenMin).max(getCartReminderPathTokenMax)
+})
+
+export const GetCartReminderResponse = zod.object({
+  "status": zod.enum(['scheduled', 'due', 'delivered', 'unsubscribed']),
+  "due": zod.boolean(),
+  "reminderAt": zod.string()
+})
+
+
+/**
+ * @summary Mark an in-app cart reminder delivered
+ */
+export const markCartReminderDeliveredPathTokenMin = 20;
+export const markCartReminderDeliveredPathTokenMax = 100;
+
+
+
+export const MarkCartReminderDeliveredParams = zod.object({
+  "token": zod.coerce.string().min(markCartReminderDeliveredPathTokenMin).max(markCartReminderDeliveredPathTokenMax)
+})
+
+export const MarkCartReminderDeliveredResponse = zod.object({
+  "unsubscribed": zod.boolean()
 })
 
 

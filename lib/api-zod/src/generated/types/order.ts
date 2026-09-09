@@ -18,6 +18,10 @@ export interface Order {
   paymentMethod: string;
   status: OrderStatus;
   total: number;
+  subtotal: number;
+  bundleDiscount: number;
+  walletCreditUsed: number;
+  loyaltyPointsEarned: number;
   items: OrderItem[];
   createdAt: string;
 }

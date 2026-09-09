@@ -20,14 +20,30 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BundleQuote,
+  BundleQuoteInput,
+  CartReminderInput,
+  CartReminderSchedule,
+  CartReminderStatus,
+  CartReminderTokenInput,
   ErrorResponse,
   GetProductsParams,
   HealthStatus,
   LookupOrderParams,
+  LoyaltyLookupInput,
+  LoyaltyProfile,
+  LoyaltyRedemption,
+  LoyaltyRedemptionInput,
+  LoyaltyReview,
+  LoyaltyReviewInput,
   Order,
   OrderInput,
+  OrderVerificationInput,
   Product,
-  StorefrontSummary
+  ReturnRequest,
+  ReturnRequestInput,
+  StorefrontSummary,
+  UnsubscribeResult
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -531,4 +547,720 @@ export function useLookupOrder<TData = Awaited<ReturnType<typeof lookupOrder>>, 
 
 
 
+
+export const getLookupLoyaltyUrl = () => {
+
+
+
+
+  return `/api/loyalty/lookup`
+}
+
+/**
+ * @summary Look up loyalty balance
+ */
+export const lookupLoyalty = async (loyaltyLookupInput: LoyaltyLookupInput, options?: Parameters<typeof customFetch>[1]): Promise<LoyaltyProfile> => {
+
+  return customFetch<LoyaltyProfile>(getLookupLoyaltyUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(loyaltyLookupInput)
+  }
+);}
+
+
+
+
+
+export const getLookupLoyaltyMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof lookupLoyalty>>, TError,{data: BodyType<LoyaltyLookupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof lookupLoyalty>>, TError,{data: BodyType<LoyaltyLookupInput>}, TContext> => {
+
+const mutationKey = ['lookupLoyalty'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof lookupLoyalty>>, {data: BodyType<LoyaltyLookupInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  lookupLoyalty(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LookupLoyaltyMutationResult = NonNullable<Awaited<ReturnType<typeof lookupLoyalty>>>
+    export type LookupLoyaltyMutationBody = BodyType<LoyaltyLookupInput>
+    export type LookupLoyaltyMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Look up loyalty balance
+ */
+export const useLookupLoyalty = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof lookupLoyalty>>, TError,{data: BodyType<LoyaltyLookupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof lookupLoyalty>>,
+        TError,
+        {data: BodyType<LoyaltyLookupInput>},
+        TContext
+      > => {
+      return useMutation(getLookupLoyaltyMutationOptions(options));
+    }
+
+export const getRedeemLoyaltyPointsUrl = () => {
+
+
+
+
+  return `/api/loyalty/redeem`
+}
+
+/**
+ * @summary Convert loyalty points to wallet credit
+ */
+export const redeemLoyaltyPoints = async (loyaltyRedemptionInput: LoyaltyRedemptionInput, options?: Parameters<typeof customFetch>[1]): Promise<LoyaltyRedemption> => {
+
+  return customFetch<LoyaltyRedemption>(getRedeemLoyaltyPointsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(loyaltyRedemptionInput)
+  }
+);}
+
+
+
+
+
+export const getRedeemLoyaltyPointsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemLoyaltyPoints>>, TError,{data: BodyType<LoyaltyRedemptionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof redeemLoyaltyPoints>>, TError,{data: BodyType<LoyaltyRedemptionInput>}, TContext> => {
+
+const mutationKey = ['redeemLoyaltyPoints'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof redeemLoyaltyPoints>>, {data: BodyType<LoyaltyRedemptionInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  redeemLoyaltyPoints(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RedeemLoyaltyPointsMutationResult = NonNullable<Awaited<ReturnType<typeof redeemLoyaltyPoints>>>
+    export type RedeemLoyaltyPointsMutationBody = BodyType<LoyaltyRedemptionInput>
+    export type RedeemLoyaltyPointsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Convert loyalty points to wallet credit
+ */
+export const useRedeemLoyaltyPoints = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemLoyaltyPoints>>, TError,{data: BodyType<LoyaltyRedemptionInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof redeemLoyaltyPoints>>,
+        TError,
+        {data: BodyType<LoyaltyRedemptionInput>},
+        TContext
+      > => {
+      return useMutation(getRedeemLoyaltyPointsMutationOptions(options));
+    }
+
+export const getCreateLoyaltyReviewUrl = () => {
+
+
+
+
+  return `/api/loyalty/reviews`
+}
+
+/**
+ * @summary Submit a verified purchase review for points
+ */
+export const createLoyaltyReview = async (loyaltyReviewInput: LoyaltyReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<LoyaltyReview> => {
+
+  return customFetch<LoyaltyReview>(getCreateLoyaltyReviewUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(loyaltyReviewInput)
+  }
+);}
+
+
+
+
+
+export const getCreateLoyaltyReviewMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLoyaltyReview>>, TError,{data: BodyType<LoyaltyReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createLoyaltyReview>>, TError,{data: BodyType<LoyaltyReviewInput>}, TContext> => {
+
+const mutationKey = ['createLoyaltyReview'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createLoyaltyReview>>, {data: BodyType<LoyaltyReviewInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createLoyaltyReview(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateLoyaltyReviewMutationResult = NonNullable<Awaited<ReturnType<typeof createLoyaltyReview>>>
+    export type CreateLoyaltyReviewMutationBody = BodyType<LoyaltyReviewInput>
+    export type CreateLoyaltyReviewMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Submit a verified purchase review for points
+ */
+export const useCreateLoyaltyReview = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLoyaltyReview>>, TError,{data: BodyType<LoyaltyReviewInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createLoyaltyReview>>,
+        TError,
+        {data: BodyType<LoyaltyReviewInput>},
+        TContext
+      > => {
+      return useMutation(getCreateLoyaltyReviewMutationOptions(options));
+    }
+
+export const getCreateReturnRequestUrl = () => {
+
+
+
+
+  return `/api/returns`
+}
+
+/**
+ * @summary Request a return or exchange
+ */
+export const createReturnRequest = async (returnRequestInput: ReturnRequestInput, options?: Parameters<typeof customFetch>[1]): Promise<ReturnRequest> => {
+
+  return customFetch<ReturnRequest>(getCreateReturnRequestUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(returnRequestInput)
+  }
+);}
+
+
+
+
+
+export const getCreateReturnRequestMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReturnRequest>>, TError,{data: BodyType<ReturnRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createReturnRequest>>, TError,{data: BodyType<ReturnRequestInput>}, TContext> => {
+
+const mutationKey = ['createReturnRequest'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createReturnRequest>>, {data: BodyType<ReturnRequestInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createReturnRequest(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateReturnRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createReturnRequest>>>
+    export type CreateReturnRequestMutationBody = BodyType<ReturnRequestInput>
+    export type CreateReturnRequestMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Request a return or exchange
+ */
+export const useCreateReturnRequest = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReturnRequest>>, TError,{data: BodyType<ReturnRequestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createReturnRequest>>,
+        TError,
+        {data: BodyType<ReturnRequestInput>},
+        TContext
+      > => {
+      return useMutation(getCreateReturnRequestMutationOptions(options));
+    }
+
+export const getLookupReturnRequestsUrl = () => {
+
+
+
+
+  return `/api/returns/lookup`
+}
+
+/**
+ * @summary Look up return and exchange requests
+ */
+export const lookupReturnRequests = async (orderVerificationInput: OrderVerificationInput, options?: Parameters<typeof customFetch>[1]): Promise<ReturnRequest[]> => {
+
+  return customFetch<ReturnRequest[]>(getLookupReturnRequestsUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(orderVerificationInput)
+  }
+);}
+
+
+
+
+
+export const getLookupReturnRequestsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof lookupReturnRequests>>, TError,{data: BodyType<OrderVerificationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof lookupReturnRequests>>, TError,{data: BodyType<OrderVerificationInput>}, TContext> => {
+
+const mutationKey = ['lookupReturnRequests'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof lookupReturnRequests>>, {data: BodyType<OrderVerificationInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  lookupReturnRequests(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LookupReturnRequestsMutationResult = NonNullable<Awaited<ReturnType<typeof lookupReturnRequests>>>
+    export type LookupReturnRequestsMutationBody = BodyType<OrderVerificationInput>
+    export type LookupReturnRequestsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Look up return and exchange requests
+ */
+export const useLookupReturnRequests = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof lookupReturnRequests>>, TError,{data: BodyType<OrderVerificationInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof lookupReturnRequests>>,
+        TError,
+        {data: BodyType<OrderVerificationInput>},
+        TContext
+      > => {
+      return useMutation(getLookupReturnRequestsMutationOptions(options));
+    }
+
+export const getQuoteBundleUrl = () => {
+
+
+
+
+  return `/api/bundles/quote`
+}
+
+/**
+ * @summary Calculate cart and bundle discounts
+ */
+export const quoteBundle = async (bundleQuoteInput: BundleQuoteInput, options?: Parameters<typeof customFetch>[1]): Promise<BundleQuote> => {
+
+  return customFetch<BundleQuote>(getQuoteBundleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bundleQuoteInput)
+  }
+);}
+
+
+
+
+
+export const getQuoteBundleMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof quoteBundle>>, TError,{data: BodyType<BundleQuoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof quoteBundle>>, TError,{data: BodyType<BundleQuoteInput>}, TContext> => {
+
+const mutationKey = ['quoteBundle'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof quoteBundle>>, {data: BodyType<BundleQuoteInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  quoteBundle(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type QuoteBundleMutationResult = NonNullable<Awaited<ReturnType<typeof quoteBundle>>>
+    export type QuoteBundleMutationBody = BodyType<BundleQuoteInput>
+    export type QuoteBundleMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Calculate cart and bundle discounts
+ */
+export const useQuoteBundle = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof quoteBundle>>, TError,{data: BodyType<BundleQuoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof quoteBundle>>,
+        TError,
+        {data: BodyType<BundleQuoteInput>},
+        TContext
+      > => {
+      return useMutation(getQuoteBundleMutationOptions(options));
+    }
+
+export const getSubscribeCartReminderUrl = () => {
+
+
+
+
+  return `/api/cart-reminders/subscribe`
+}
+
+/**
+ * @summary Schedule a consented cart reminder
+ */
+export const subscribeCartReminder = async (cartReminderInput: CartReminderInput, options?: Parameters<typeof customFetch>[1]): Promise<CartReminderSchedule> => {
+
+  return customFetch<CartReminderSchedule>(getSubscribeCartReminderUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(cartReminderInput)
+  }
+);}
+
+
+
+
+
+export const getSubscribeCartReminderMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof subscribeCartReminder>>, TError,{data: BodyType<CartReminderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof subscribeCartReminder>>, TError,{data: BodyType<CartReminderInput>}, TContext> => {
+
+const mutationKey = ['subscribeCartReminder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof subscribeCartReminder>>, {data: BodyType<CartReminderInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  subscribeCartReminder(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubscribeCartReminderMutationResult = NonNullable<Awaited<ReturnType<typeof subscribeCartReminder>>>
+    export type SubscribeCartReminderMutationBody = BodyType<CartReminderInput>
+    export type SubscribeCartReminderMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Schedule a consented cart reminder
+ */
+export const useSubscribeCartReminder = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof subscribeCartReminder>>, TError,{data: BodyType<CartReminderInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof subscribeCartReminder>>,
+        TError,
+        {data: BodyType<CartReminderInput>},
+        TContext
+      > => {
+      return useMutation(getSubscribeCartReminderMutationOptions(options));
+    }
+
+export const getUnsubscribeCartReminderUrl = () => {
+
+
+
+
+  return `/api/cart-reminders/unsubscribe`
+}
+
+/**
+ * @summary Cancel cart reminders for a phone number
+ */
+export const unsubscribeCartReminder = async (cartReminderTokenInput: CartReminderTokenInput, options?: Parameters<typeof customFetch>[1]): Promise<UnsubscribeResult> => {
+
+  return customFetch<UnsubscribeResult>(getUnsubscribeCartReminderUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(cartReminderTokenInput)
+  }
+);}
+
+
+
+
+
+export const getUnsubscribeCartReminderMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unsubscribeCartReminder>>, TError,{data: BodyType<CartReminderTokenInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unsubscribeCartReminder>>, TError,{data: BodyType<CartReminderTokenInput>}, TContext> => {
+
+const mutationKey = ['unsubscribeCartReminder'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unsubscribeCartReminder>>, {data: BodyType<CartReminderTokenInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  unsubscribeCartReminder(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnsubscribeCartReminderMutationResult = NonNullable<Awaited<ReturnType<typeof unsubscribeCartReminder>>>
+    export type UnsubscribeCartReminderMutationBody = BodyType<CartReminderTokenInput>
+    export type UnsubscribeCartReminderMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Cancel cart reminders for a phone number
+ */
+export const useUnsubscribeCartReminder = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unsubscribeCartReminder>>, TError,{data: BodyType<CartReminderTokenInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof unsubscribeCartReminder>>,
+        TError,
+        {data: BodyType<CartReminderTokenInput>},
+        TContext
+      > => {
+      return useMutation(getUnsubscribeCartReminderMutationOptions(options));
+    }
+
+export const getGetCartReminderUrl = (token: string,) => {
+
+
+
+
+  return `/api/cart-reminders/${token}`
+}
+
+/**
+ * @summary Check an in-app cart reminder
+ */
+export const getCartReminder = async (token: string, options?: Parameters<typeof customFetch>[1]): Promise<CartReminderStatus> => {
+
+  return customFetch<CartReminderStatus>(getGetCartReminderUrl(token),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCartReminderQueryKey = (token: string,) => {
+    return [
+    `/api/cart-reminders/${token}`
+    ] as const;
+    }
+
+
+export const getGetCartReminderQueryOptions = <TData = Awaited<ReturnType<typeof getCartReminder>>, TError = ErrorType<ErrorResponse>>(token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCartReminder>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCartReminderQueryKey(token);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCartReminder>>> = ({ signal }) => getCartReminder(token, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: token !== null && token !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCartReminder>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCartReminderQueryResult = NonNullable<Awaited<ReturnType<typeof getCartReminder>>>
+export type GetCartReminderQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Check an in-app cart reminder
+ */
+
+export function useGetCartReminder<TData = Awaited<ReturnType<typeof getCartReminder>>, TError = ErrorType<ErrorResponse>>(
+ token: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCartReminder>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCartReminderQueryOptions(token,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getMarkCartReminderDeliveredUrl = (token: string,) => {
+
+
+
+
+  return `/api/cart-reminders/${token}/delivered`
+}
+
+/**
+ * @summary Mark an in-app cart reminder delivered
+ */
+export const markCartReminderDelivered = async (token: string, options?: Parameters<typeof customFetch>[1]): Promise<UnsubscribeResult> => {
+
+  return customFetch<UnsubscribeResult>(getMarkCartReminderDeliveredUrl(token),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkCartReminderDeliveredMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markCartReminderDelivered>>, TError,{token: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markCartReminderDelivered>>, TError,{token: string}, TContext> => {
+
+const mutationKey = ['markCartReminderDelivered'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markCartReminderDelivered>>, {token: string}> = (props) => {
+          const {token} = props ?? {};
+
+          return  markCartReminderDelivered(token,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkCartReminderDeliveredMutationResult = NonNullable<Awaited<ReturnType<typeof markCartReminderDelivered>>>
+
+    export type MarkCartReminderDeliveredMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Mark an in-app cart reminder delivered
+ */
+export const useMarkCartReminderDelivered = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markCartReminderDelivered>>, TError,{token: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markCartReminderDelivered>>,
+        TError,
+        {token: string},
+        TContext
+      > => {
+      return useMutation(getMarkCartReminderDeliveredMutationOptions(options));
+    }
 

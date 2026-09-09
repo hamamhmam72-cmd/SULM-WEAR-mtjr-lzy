@@ -59,6 +59,13 @@ export interface OrderInput {
   city: string;
   address: string;
   paymentMethod: OrderInputPaymentMethod;
+  /**
+     * @minimum 0
+     * @maximum 500
+     */
+  walletCreditToUse?: number;
+  /** @maxLength 1000 */
+  loyaltyVerificationToken?: string;
   /** @minItems 1 */
   items: OrderItemInput[];
 }
@@ -92,8 +99,269 @@ export interface Order {
   paymentMethod: string;
   status: OrderStatus;
   total: number;
+  subtotal: number;
+  bundleDiscount: number;
+  walletCreditUsed: number;
+  loyaltyPointsEarned: number;
   items: OrderItem[];
   createdAt: string;
+}
+
+export interface LoyaltyLookupInput {
+  /**
+     * @minLength 6
+     * @maxLength 32
+     */
+  orderNumber: string;
+  /**
+     * @minLength 8
+     * @maxLength 24
+     */
+  phone: string;
+}
+
+export interface LoyaltyRedemptionInput {
+  /**
+     * @minLength 20
+     * @maxLength 1000
+     */
+  verificationToken: string;
+  /**
+     * @minimum 100
+     * @maximum 1000
+     */
+  points: number;
+}
+
+export type LoyaltyProfileTier = typeof LoyaltyProfileTier[keyof typeof LoyaltyProfileTier];
+
+
+export const LoyaltyProfileTier = {
+  member: 'member',
+  silver: 'silver',
+  black: 'black',
+} as const;
+
+export interface LoyaltyProfile {
+  maskedPhone: string;
+  points: number;
+  walletCredit: number;
+  pendingPoints: number;
+  tier: LoyaltyProfileTier;
+  /** @nullable */
+  nextTierAt: number | null;
+  verificationToken: string;
+}
+
+export interface LoyaltyRedemption {
+  creditAdded: number;
+  profile: LoyaltyProfile;
+}
+
+export interface LoyaltyReviewInput {
+  /**
+     * @minLength 6
+     * @maxLength 32
+     */
+  orderNumber: string;
+  /**
+     * @minLength 8
+     * @maxLength 24
+     */
+  phone: string;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  productSlug: string;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  rating: number;
+  /**
+     * @minLength 15
+     * @maxLength 800
+     */
+  review: string;
+}
+
+export type LoyaltyReviewStatus = typeof LoyaltyReviewStatus[keyof typeof LoyaltyReviewStatus];
+
+
+export const LoyaltyReviewStatus = {
+  approved: 'approved',
+} as const;
+
+export interface LoyaltyReview {
+  id: number;
+  status: LoyaltyReviewStatus;
+  pointsEarned: number;
+  createdAt: string;
+  profile: LoyaltyProfile;
+}
+
+export interface OrderVerificationInput {
+  /**
+     * @minLength 6
+     * @maxLength 32
+     */
+  orderNumber: string;
+  /**
+     * @minLength 8
+     * @maxLength 24
+     */
+  phone: string;
+}
+
+export type ReturnRequestInputType = typeof ReturnRequestInputType[keyof typeof ReturnRequestInputType];
+
+
+export const ReturnRequestInputType = {
+  return: 'return',
+  exchange: 'exchange',
+} as const;
+
+export interface ReturnRequestInput {
+  /**
+     * @minLength 6
+     * @maxLength 32
+     */
+  orderNumber: string;
+  /**
+     * @minLength 8
+     * @maxLength 24
+     */
+  phone: string;
+  type: ReturnRequestInputType;
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  productSlug: string;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  /**
+     * @maxLength 8
+     * @nullable
+     */
+  requestedSize: string | null;
+}
+
+export type ReturnRequestType = typeof ReturnRequestType[keyof typeof ReturnRequestType];
+
+
+export const ReturnRequestType = {
+  return: 'return',
+  exchange: 'exchange',
+} as const;
+
+export type ReturnRequestStatus = typeof ReturnRequestStatus[keyof typeof ReturnRequestStatus];
+
+
+export const ReturnRequestStatus = {
+  requested: 'requested',
+  approved: 'approved',
+  collected: 'collected',
+  completed: 'completed',
+  declined: 'declined',
+} as const;
+
+export interface ReturnRequest {
+  id: number;
+  requestNumber: string;
+  orderNumber: string;
+  type: ReturnRequestType;
+  productSlug: string;
+  reason: string;
+  /** @nullable */
+  requestedSize: string | null;
+  status: ReturnRequestStatus;
+  createdAt: string;
+}
+
+export interface BundleQuoteInput {
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  items: OrderItemInput[];
+}
+
+export interface BundleQuote {
+  subtotal: number;
+  discount: number;
+  total: number;
+  /** @nullable */
+  appliedRule: string | null;
+}
+
+export type CartReminderInputChannel = typeof CartReminderInputChannel[keyof typeof CartReminderInputChannel];
+
+
+export const CartReminderInputChannel = {
+  in_app: 'in_app',
+} as const;
+
+export interface CartReminderInput {
+  /**
+     * @minLength 8
+     * @maxLength 24
+     */
+  phone: string;
+  consent: true;
+  channel: CartReminderInputChannel;
+  /**
+     * @minItems 1
+     * @maxItems 20
+     */
+  items: OrderItemInput[];
+}
+
+export type CartReminderScheduleStatus = typeof CartReminderScheduleStatus[keyof typeof CartReminderScheduleStatus];
+
+
+export const CartReminderScheduleStatus = {
+  scheduled: 'scheduled',
+  already_scheduled: 'already_scheduled',
+} as const;
+
+export interface CartReminderSchedule {
+  status: CartReminderScheduleStatus;
+  reminderAt: string;
+  nextEligibleAt: string;
+  reminderToken: string;
+}
+
+export interface CartReminderTokenInput {
+  /**
+     * @minLength 20
+     * @maxLength 100
+     */
+  reminderToken: string;
+}
+
+export type CartReminderStatusStatus = typeof CartReminderStatusStatus[keyof typeof CartReminderStatusStatus];
+
+
+export const CartReminderStatusStatus = {
+  scheduled: 'scheduled',
+  due: 'due',
+  delivered: 'delivered',
+  unsubscribed: 'unsubscribed',
+} as const;
+
+export interface CartReminderStatus {
+  status: CartReminderStatusStatus;
+  due: boolean;
+  reminderAt: string;
+}
+
+export interface UnsubscribeResult {
+  unsubscribed: boolean;
 }
 
 export interface ErrorResponse {

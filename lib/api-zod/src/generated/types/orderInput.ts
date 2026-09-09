@@ -16,6 +16,13 @@ export interface OrderInput {
   city: string;
   address: string;
   paymentMethod: OrderInputPaymentMethod;
+  /**
+     * @minimum 0
+     * @maximum 500
+     */
+  walletCreditToUse?: number;
+  /** @maxLength 1000 */
+  loyaltyVerificationToken?: string;
   /** @minItems 1 */
   items: OrderItemInput[];
 }

@@ -14,6 +14,8 @@ tags:
     description: Public storefront operations
   - name: orders
     description: Customer order operations
+  - name: retention
+    description: Loyalty, returns, bundles, and consented reminder operations
 paths:
   /healthz:
     get:
@@ -151,6 +153,258 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /loyalty/lookup:
+    post:
+      operationId: lookupLoyalty
+      tags: [retention]
+      summary: Look up loyalty balance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoyaltyLookupInput"
+      responses:
+        "200":
+          description: Loyalty profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoyaltyProfile"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /loyalty/redeem:
+    post:
+      operationId: redeemLoyaltyPoints
+      tags: [retention]
+      summary: Convert loyalty points to wallet credit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoyaltyRedemptionInput"
+      responses:
+        "200":
+          description: Updated loyalty profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoyaltyRedemption"
+        "400":
+          description: Invalid redemption
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /loyalty/reviews:
+    post:
+      operationId: createLoyaltyReview
+      tags: [retention]
+      summary: Submit a verified purchase review for points
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoyaltyReviewInput"
+      responses:
+        "201":
+          description: Approved review and earned points
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoyaltyReview"
+        "400":
+          description: Invalid or duplicate review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Verified purchase not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /returns:
+    post:
+      operationId: createReturnRequest
+      tags: [retention]
+      summary: Request a return or exchange
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReturnRequestInput"
+      responses:
+        "201":
+          description: Return request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReturnRequest"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /returns/lookup:
+    post:
+      operationId: lookupReturnRequests
+      tags: [retention]
+      summary: Look up return and exchange requests
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderVerificationInput"
+      responses:
+        "200":
+          description: Return requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ReturnRequest"
+        "404":
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /bundles/quote:
+    post:
+      operationId: quoteBundle
+      tags: [retention]
+      summary: Calculate cart and bundle discounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BundleQuoteInput"
+      responses:
+        "200":
+          description: Bundle quote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BundleQuote"
+        "400":
+          description: Invalid cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /cart-reminders/subscribe:
+    post:
+      operationId: subscribeCartReminder
+      tags: [retention]
+      summary: Schedule a consented cart reminder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CartReminderInput"
+      responses:
+        "200":
+          description: Reminder schedule
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartReminderSchedule"
+        "400":
+          description: Consent or validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Reminder frequency limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /cart-reminders/unsubscribe:
+    post:
+      operationId: unsubscribeCartReminder
+      tags: [retention]
+      summary: Cancel cart reminders for a phone number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CartReminderTokenInput"
+      responses:
+        "200":
+          description: Unsubscribed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnsubscribeResult"
+  /cart-reminders/{token}:
+    get:
+      operationId: getCartReminder
+      tags: [retention]
+      summary: Check an in-app cart reminder
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 20
+            maxLength: 100
+      responses:
+        "200":
+          description: Reminder state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartReminderStatus"
+        "404":
+          description: Reminder not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /cart-reminders/{token}/delivered:
+    post:
+      operationId: markCartReminderDelivered
+      tags: [retention]
+      summary: Mark an in-app cart reminder delivered
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 20
+            maxLength: 100
+      responses:
+        "200":
+          description: Delivery recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnsubscribeResult"
 components:
   schemas:
     HealthStatus:
@@ -260,6 +514,13 @@ components:
         paymentMethod:
           type: string
           enum: [cod, prepaid]
+        walletCreditToUse:
+          type: number
+          minimum: 0
+          maximum: 500
+        loyaltyVerificationToken:
+          type: string
+          maxLength: 1000
         items:
           type: array
           minItems: 1
@@ -313,6 +574,14 @@ components:
           enum: [new, processing, packed, ready_to_ship, shipped]
         total:
           type: number
+        subtotal:
+          type: number
+        bundleDiscount:
+          type: number
+        walletCreditUsed:
+          type: number
+        loyaltyPointsEarned:
+          type: integer
         items:
           type: array
           items:
@@ -329,8 +598,303 @@ components:
         - paymentMethod
         - status
         - total
+        - subtotal
+        - bundleDiscount
+        - walletCreditUsed
+        - loyaltyPointsEarned
         - items
         - createdAt
+    LoyaltyLookupInput:
+      type: object
+      properties:
+        orderNumber:
+          type: string
+          minLength: 6
+          maxLength: 32
+        phone:
+          type: string
+          minLength: 8
+          maxLength: 24
+      required:
+        - orderNumber
+        - phone
+    LoyaltyRedemptionInput:
+      type: object
+      properties:
+        verificationToken:
+          type: string
+          minLength: 20
+          maxLength: 1000
+        points:
+          type: integer
+          minimum: 100
+          maximum: 1000
+          multipleOf: 100
+      required:
+        - verificationToken
+        - points
+    LoyaltyProfile:
+      type: object
+      properties:
+        maskedPhone:
+          type: string
+        points:
+          type: integer
+        walletCredit:
+          type: number
+        pendingPoints:
+          type: integer
+        tier:
+          type: string
+          enum: [member, silver, black]
+        nextTierAt:
+          type: ["integer", "null"]
+        verificationToken:
+          type: string
+      required:
+        - maskedPhone
+        - points
+        - walletCredit
+        - pendingPoints
+        - tier
+        - nextTierAt
+        - verificationToken
+    LoyaltyRedemption:
+      type: object
+      properties:
+        creditAdded:
+          type: number
+        profile:
+          $ref: "#/components/schemas/LoyaltyProfile"
+      required:
+        - creditAdded
+        - profile
+    LoyaltyReviewInput:
+      type: object
+      properties:
+        orderNumber:
+          type: string
+          minLength: 6
+          maxLength: 32
+        phone:
+          type: string
+          minLength: 8
+          maxLength: 24
+        productSlug:
+          type: string
+          minLength: 1
+          maxLength: 120
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        review:
+          type: string
+          minLength: 15
+          maxLength: 800
+      required:
+        - orderNumber
+        - phone
+        - productSlug
+        - rating
+        - review
+    LoyaltyReview:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+          enum: [approved]
+        pointsEarned:
+          type: integer
+        createdAt:
+          type: string
+        profile:
+          $ref: "#/components/schemas/LoyaltyProfile"
+      required:
+        - id
+        - status
+        - pointsEarned
+        - createdAt
+        - profile
+    OrderVerificationInput:
+      type: object
+      properties:
+        orderNumber:
+          type: string
+          minLength: 6
+          maxLength: 32
+        phone:
+          type: string
+          minLength: 8
+          maxLength: 24
+      required:
+        - orderNumber
+        - phone
+    ReturnRequestInput:
+      type: object
+      properties:
+        orderNumber:
+          type: string
+          minLength: 6
+          maxLength: 32
+        phone:
+          type: string
+          minLength: 8
+          maxLength: 24
+        type:
+          type: string
+          enum: [return, exchange]
+        productSlug:
+          type: string
+          minLength: 1
+          maxLength: 120
+        reason:
+          type: string
+          minLength: 5
+          maxLength: 500
+        requestedSize:
+          type: ["string", "null"]
+          maxLength: 8
+      required:
+        - orderNumber
+        - phone
+        - type
+        - productSlug
+        - reason
+        - requestedSize
+    ReturnRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        requestNumber:
+          type: string
+        orderNumber:
+          type: string
+        type:
+          type: string
+          enum: [return, exchange]
+        productSlug:
+          type: string
+        reason:
+          type: string
+        requestedSize:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [requested, approved, collected, completed, declined]
+        createdAt:
+          type: string
+      required:
+        - id
+        - requestNumber
+        - orderNumber
+        - type
+        - productSlug
+        - reason
+        - requestedSize
+        - status
+        - createdAt
+    BundleQuoteInput:
+      type: object
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/OrderItemInput"
+      required:
+        - items
+    BundleQuote:
+      type: object
+      properties:
+        subtotal:
+          type: number
+        discount:
+          type: number
+        total:
+          type: number
+        appliedRule:
+          type: ["string", "null"]
+      required:
+        - subtotal
+        - discount
+        - total
+        - appliedRule
+    CartReminderInput:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 8
+          maxLength: 24
+        consent:
+          type: boolean
+          const: true
+        channel:
+          type: string
+          enum: [in_app]
+        items:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/OrderItemInput"
+      required:
+        - phone
+        - consent
+        - channel
+        - items
+    CartReminderSchedule:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [scheduled, already_scheduled]
+        reminderAt:
+          type: string
+        nextEligibleAt:
+          type: string
+        reminderToken:
+          type: string
+      required:
+        - status
+        - reminderAt
+        - nextEligibleAt
+        - reminderToken
+    CartReminderTokenInput:
+      type: object
+      properties:
+        reminderToken:
+          type: string
+          minLength: 20
+          maxLength: 100
+      required:
+        - reminderToken
+    CartReminderStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [scheduled, due, delivered, unsubscribed]
+        due:
+          type: boolean
+        reminderAt:
+          type: string
+      required:
+        - status
+        - due
+        - reminderAt
+    UnsubscribeResult:
+      type: object
+      properties:
+        unsubscribed:
+          type: boolean
+      required:
+        - unsubscribed
     ErrorResponse:
       type: object
       properties:

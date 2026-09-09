@@ -33,13 +33,22 @@ import {
   useGetProducts,
   useGetStorefrontSummary,
   useLookupOrder,
+  useLookupLoyalty,
+  useQuoteBundle,
+  useSubscribeCartReminder,
+  useGetCartReminder,
+  useMarkCartReminderDelivered,
+  useUnsubscribeCartReminder,
   type Order,
   type Product,
 } from '@workspace/api-client-react';
+import { getGetCartReminderQueryKey } from "@workspace/api-client-react";
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Route, Switch, Link, Router as WouterRouter, useLocation, useParams } from 'wouter';
+import { Loyalty } from './Loyalty';
+import { Returns } from './Returns';
 import '@/index.css';
 
 const queryClient = new QueryClient();
@@ -97,7 +106,7 @@ function Header({ cartCount, onCart, onMenu }: { cartCount: number; onCart: () =
           <nav className="hidden items-center gap-7 text-[11px] font-bold uppercase tracking-[.16em] lg:flex">
             <a href="#shop" className={`outline-focus transition-colors hover:text-accent ${location === '/' ? 'text-foreground' : 'text-muted-foreground'}`} data-testid="link-shop">Shop</a>
             <a href="#story" className="text-muted-foreground outline-focus transition-colors hover:text-foreground" data-testid="link-story">The SULM standard</a>
-            <Link href="/track-order" className="text-muted-foreground outline-focus transition-colors hover:text-foreground" data-testid="link-track-order">Track order</Link>
+            <Link href="/track-order" className="text-muted-foreground outline-focus transition-colors hover:text-foreground" data-testid="link-track-order">Track</Link><Link href="/returns" className="text-muted-foreground outline-focus transition-colors hover:text-foreground" data-testid="link-returns">Returns</Link><Link href="/loyalty" className="text-muted-foreground outline-focus transition-colors hover:text-foreground" data-testid="link-loyalty">Atelier</Link>
           </nav>
         </div>
         <div className="flex items-center gap-4">
@@ -305,21 +314,291 @@ function ProductPage({ onAdd }: { onAdd: (product: Product, size?: string) => vo
   );
 }
 
+
 function CartDrawer({ items, open, onClose, onChange }: { items: CartItem[]; open: boolean; onClose: () => void; onChange: (items: CartItem[]) => void }) {
+  const quote = useQuoteBundle();
+  useEffect(() => {
+    if (open && items.length > 0) {
+      quote.mutate({ data: { items: items.map(item => ({ productSlug: item.product.slug, size: item.size, quantity: item.quantity })) } });
+    }
+  }, [open, items.map(i => i.product.slug + i.size + i.quantity).join(',')]);
+
+
+
+  const [phone, setPhone] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [reminderToken, setReminderToken] = useState(() => localStorage.getItem('sulm-cart-reminder') || '');
+  useEffect(() => {
+    const syncReminder = () => setReminderToken(localStorage.getItem('sulm-cart-reminder') || '');
+    window.addEventListener('sulm-cart-reminder-change', syncReminder);
+    return () => window.removeEventListener('sulm-cart-reminder-change', syncReminder);
+  }, []);
+  
+  const subscribe = useSubscribeCartReminder();
+  const unsubscribe = useUnsubscribeCartReminder();
+  
+  const handleRemind = (e: FormEvent) => {
+    e.preventDefault();
+    if (!phone || !consent) return;
+    subscribe.mutate({ data: { phone, consent: true, channel: 'in_app', items: items.map(item => ({ productSlug: item.product.slug, size: item.size, quantity: item.quantity })) } }, {
+      onSuccess: (data) => {
+        setReminderToken(data.reminderToken);
+        localStorage.setItem('sulm-cart-reminder', data.reminderToken);
+        window.dispatchEvent(new Event('sulm-cart-reminder-change'));
+      }
+    });
+  };
+
+  const handleUnsubscribe = () => {
+    if (!reminderToken) return;
+    unsubscribe.mutate({ data: { reminderToken } }, {
+      onSuccess: () => {
+        setReminderToken('');
+        localStorage.removeItem('sulm-cart-reminder');
+        window.dispatchEvent(new Event('sulm-cart-reminder-change'));
+      }
+    });
+  };
+
+
+
   const total = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const quoteData = quote.data;
+  const displayTotal = quoteData?.total ?? total;
+  const discount = quoteData?.discount ?? 0;
+
   if (!open) return null;
   const updateQty = (index: number, delta: number) => onChange(items.map((item, itemIndex) => itemIndex === index ? { ...item, quantity: Math.max(0, item.quantity + delta) } : item).filter((item) => item.quantity > 0));
-  return <div className="fixed inset-0 z-50"><button className="absolute inset-0 bg-foreground/35 backdrop-blur-[2px]" onClick={onClose} aria-label="Close bag" data-testid="button-close-cart-backdrop" /><aside className="slide-in absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-background shadow-2xl"><div className="flex items-center justify-between border-b border-border px-6 py-5"><div><p className="text-[10px] font-bold uppercase tracking-[.2em] text-accent">Your bag</p><h2 className="display mt-1 text-2xl font-semibold">{items.length ? `${items.length} ${items.length === 1 ? 'piece' : 'pieces'}` : 'A considered start'}</h2></div><button onClick={onClose} className="outline-focus" aria-label="Close bag" data-testid="button-close-cart"><X size={20} strokeWidth={1.4} /></button></div>{items.length === 0 ? <div className="flex flex-1 flex-col items-center justify-center px-10 text-center"><ShoppingBag size={28} strokeWidth={1} className="mb-5 text-accent" /><h3 className="text-lg font-semibold">Your bag is quiet.</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">Start with one piece you will reach for tomorrow.</p><Link href="/" onClick={onClose} className="mt-7 border-b border-foreground pb-1 text-[10px] font-bold uppercase tracking-[.17em]" data-testid="link-empty-cart-shop">Explore the edit</Link></div> : <><div className="flex-1 overflow-auto px-6 py-4">{items.map((item, index) => <div className="flex gap-4 border-b border-border py-5" key={`${item.product.id}-${item.size}`}><div className="h-24 w-20 shrink-0"><ProductVisual product={item.product} /></div><div className="min-w-0 flex-1"><div className="flex justify-between gap-3"><div><p className="truncate text-sm font-semibold">{item.product.name}</p><p className="mt-1 text-[10px] uppercase tracking-[.15em] text-muted-foreground">Size {item.size}</p></div><button className="text-muted-foreground hover:text-destructive" onClick={() => updateQty(index, -item.quantity)} aria-label={`Remove ${item.product.name}`} data-testid={`button-remove-cart-${item.product.id}`}><X size={14} /></button></div><div className="mt-5 flex items-center justify-between"><div className="flex items-center border border-border"><button className="grid h-7 w-7 place-items-center hover:bg-muted" onClick={() => updateQty(index, -1)} data-testid={`button-decrease-cart-${item.product.id}`}><Minus size={12} /></button><span className="w-7 text-center font-mono text-[11px]">{item.quantity}</span><button className="grid h-7 w-7 place-items-center hover:bg-muted" onClick={() => updateQty(index, 1)} data-testid={`button-increase-cart-${item.product.id}`}><Plus size={12} /></button></div><p className="font-mono text-xs">{money(item.product.price * item.quantity)}</p></div></div></div>)}</div><div className="border-t border-border px-6 py-6"><div className="mb-5 flex items-center justify-between"><span className="text-xs uppercase tracking-[.15em] text-muted-foreground">Subtotal</span><span className="font-mono text-base">{money(total)}</span></div><Link href="/checkout" onClick={onClose} className="flex h-13 items-center justify-center gap-3 bg-foreground text-[11px] font-bold uppercase tracking-[.18em] text-background transition-colors hover:bg-accent" data-testid="link-checkout">Continue to checkout <ArrowRight size={15} /></Link></div></>}</aside></div>;
+  
+  return (
+    <div className="fixed inset-0 z-50">
+      <button className="absolute inset-0 bg-foreground/35 backdrop-blur-[2px]" onClick={onClose} aria-label="Close bag" data-testid="button-close-cart-backdrop" />
+      <aside className="slide-in absolute right-0 top-0 flex h-full w-full max-w-md flex-col bg-background shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border px-6 py-5">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[.2em] text-accent">Your bag</p>
+            <h2 className="display mt-1 text-2xl font-semibold">{items.length ? `${items.length} ${items.length === 1 ? 'piece' : 'pieces'}` : 'A considered start'}</h2>
+          </div>
+          <button onClick={onClose} className="outline-focus" aria-label="Close bag" data-testid="button-close-cart"><X size={20} strokeWidth={1.4} /></button>
+        </div>
+        {items.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center px-10 text-center">
+            <ShoppingBag size={28} strokeWidth={1} className="mb-5 text-accent" />
+            <h3 className="text-lg font-semibold">Your bag is quiet.</h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Start with one piece you will reach for tomorrow.</p>
+            <Link href="/" onClick={onClose} className="mt-7 border-b border-foreground pb-1 text-[10px] font-bold uppercase tracking-[.17em]" data-testid="link-empty-cart-shop">Explore the edit</Link>
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 overflow-auto px-6 py-4">
+              {items.map((item, index) => (
+                <div className="flex gap-4 border-b border-border py-5" key={`${item.product.id}-${item.size}`}>
+                  <div className="h-24 w-20 shrink-0"><ProductVisual product={item.product} /></div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex justify-between gap-3">
+                      <div>
+                        <p className="truncate text-sm font-semibold">{item.product.name}</p>
+                        <p className="mt-1 text-[10px] uppercase tracking-[.15em] text-muted-foreground">Size {item.size}</p>
+                      </div>
+                      <button className="text-muted-foreground hover:text-destructive" onClick={() => updateQty(index, -item.quantity)} aria-label={`Remove ${item.product.name}`} data-testid={`button-remove-cart-${item.product.id}`}><X size={14} /></button>
+                    </div>
+                    <div className="mt-5 flex items-center justify-between">
+                      <div className="flex items-center border border-border">
+                        <button className="grid h-7 w-7 place-items-center hover:bg-muted" onClick={() => updateQty(index, -1)} data-testid={`button-decrease-cart-${item.product.id}`}><Minus size={12} /></button>
+                        <span className="w-7 text-center font-mono text-[11px]">{item.quantity}</span>
+                        <button className="grid h-7 w-7 place-items-center hover:bg-muted" onClick={() => updateQty(index, 1)} data-testid={`button-increase-cart-${item.product.id}`}><Plus size={12} /></button>
+                      </div>
+                      <p className="font-mono text-xs">{money(item.product.price * item.quantity)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="border-t border-border px-6 py-6 bg-muted/20">
+              {!reminderToken ? (
+                <form onSubmit={handleRemind} className="mb-6">
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="sr-only">Phone for reminder</label>
+                      <input required minLength={8} type="text" placeholder="Phone to save cart" value={phone} onChange={e => setPhone(e.target.value)} className="h-9 w-full border-b border-border bg-transparent text-xs outline-none focus:border-accent" data-testid="input-cart-reminder-phone" />
+                    </div>
+                    <button type="submit" disabled={subscribe.isPending || !consent} className="h-9 px-3 bg-foreground text-background text-[9px] font-bold uppercase tracking-[.1em] whitespace-nowrap disabled:opacity-50" data-testid="button-cart-reminder-submit">{subscribe.isPending ? 'Saving...' : 'Save for later'}</button>
+                  </div>
+                  <label className="mt-3 flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <input type="checkbox" className="mt-1" checked={consent} onChange={(e) => setConsent(e.target.checked)} data-testid="checkbox-cart-reminder-consent" />
+                    <span>I agree to receive a gentle in-app reminder if I leave these pieces behind.</span>
+                  </label>
+                </form>
+              ) : (
+                <div className="mb-6 text-xs text-green-600 flex items-center justify-between">
+                  <span className="flex items-center gap-2"><Check size={14} /> Cart saved. We will remind you later.</span>
+                  <button onClick={handleUnsubscribe} disabled={unsubscribe.isPending} className="text-muted-foreground hover:text-foreground underline decoration-muted-foreground/30 underline-offset-2" data-testid="button-cart-reminder-unsubscribe">{unsubscribe.isPending ? 'Removing...' : 'Unsubscribe'}</button>
+                </div>
+              )}
+
+              <div className="space-y-2 mb-5 text-sm">
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>Subtotal</span>
+                  <span className="font-mono">{money(total)}</span>
+                </div>
+                {discount > 0 && (
+                  <div className="flex items-center justify-between text-accent">
+                    <span>Bundle Savings {quoteData?.appliedRule ? `(${quoteData.appliedRule})` : ''}</span>
+                    <span className="font-mono">-{money(discount)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between font-semibold pt-2 border-t border-border">
+                  <span className="text-xs uppercase tracking-[.15em]">Total</span>
+                  <span className="font-mono text-base">{money(displayTotal)}</span>
+                </div>
+              </div>
+              <Link href="/checkout" onClick={onClose} className="flex h-13 items-center justify-center gap-3 bg-foreground text-[11px] font-bold uppercase tracking-[.18em] text-background transition-colors hover:bg-accent" data-testid="link-checkout">Continue to checkout <ArrowRight size={15} /></Link>
+            </div>
+          </>
+        )}
+      </aside>
+    </div>
+  );
 }
+
+
 
 function Checkout({ items, onSuccess }: { items: CartItem[]; onSuccess: (order: Order) => void }) {
   const mutation = useCreateOrder();
   const [form, setForm] = useState({ customerName: '', phone: '', city: 'Amman', address: '', paymentMethod: 'cod' as 'cod' | 'prepaid' });
+  
+  const quote = useQuoteBundle();
+  useEffect(() => {
+    if (items.length > 0) {
+      quote.mutate({ data: { items: items.map(item => ({ productSlug: item.product.slug, size: item.size, quantity: item.quantity })) } });
+    }
+  }, [items.map(i => i.product.slug + i.size + i.quantity).join(',')]);
+
+  const [loyaltyPhone, setLoyaltyPhone] = useState('');
+  const [loyaltyOrder, setLoyaltyOrder] = useState('');
+  const loyalty = useLookupLoyalty();
+  const [useWallet, setUseWallet] = useState(false);
+  const [walletAmount, setWalletAmount] = useState(0);
+
+  const handleLoyaltyLookup = (e: FormEvent) => {
+    e.preventDefault();
+    loyalty.mutate({ data: { phone: loyaltyPhone, orderNumber: loyaltyOrder } });
+  };
+
   const total = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  const submit = (event: FormEvent) => { event.preventDefault(); mutation.mutate({ data: { ...form, items: items.map((item) => ({ productSlug: item.product.slug, size: item.size, quantity: item.quantity })) } }, { onSuccess }); };
+  const quoteData = quote.data;
+  const displayTotal = quoteData?.total ?? total;
+  const discount = quoteData?.discount ?? 0;
+  
+  const maxWallet = loyalty.data ? Math.min(loyalty.data.walletCredit, displayTotal) : 0;
+  const finalTotal = displayTotal - (useWallet ? walletAmount : 0);
+
+  const submit = (event: FormEvent) => { 
+    event.preventDefault(); 
+    const orderData: any = {
+      ...form, 
+      items: items.map((item) => ({ productSlug: item.product.slug, size: item.size, quantity: item.quantity }))
+    };
+    if (useWallet && walletAmount > 0 && loyalty.data?.verificationToken) {
+      orderData.walletCreditToUse = walletAmount;
+      orderData.loyaltyVerificationToken = loyalty.data.verificationToken;
+    }
+    mutation.mutate({ data: orderData }, { onSuccess }); 
+  };
+  
   if (!items.length) return <div className="mx-auto max-w-[640px] px-5 py-28 text-center sm:px-8"><ShoppingBag size={30} strokeWidth={1} className="mx-auto mb-6 text-accent" /><h1 className="display text-5xl font-bold tracking-[-.06em]">Nothing to check out.</h1><p className="mx-auto mt-4 max-w-sm text-sm leading-6 text-muted-foreground">Your bag is waiting for the first piece.</p><Link href="/" className="mt-8 inline-flex border-b border-foreground pb-1 text-[10px] font-bold uppercase tracking-[.17em]" data-testid="link-checkout-empty-shop">Return to the edit</Link></div>;
-  return <main className="mx-auto max-w-[1240px] px-5 py-10 sm:px-8 lg:px-12 lg:py-16"><div className="mb-10"><p className="text-[10px] font-bold uppercase tracking-[.2em] text-accent">Finish the thought / 03</p><h1 className="display mt-4 text-5xl font-bold tracking-[-.07em] sm:text-7xl">Your details.</h1><p className="mt-4 text-sm text-muted-foreground">We deliver with care across Jordan. Cash on delivery is available.</p></div><div className="grid gap-14 lg:grid-cols-[1fr_380px]"><form onSubmit={submit} className="max-w-xl"><div className="grid gap-5 sm:grid-cols-2"><label className="text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground sm:col-span-2">Full name<input required minLength={2} value={form.customerName} onChange={(event) => setForm({ ...form, customerName: event.target.value })} className="mt-2 h-12 w-full border-b border-border bg-transparent text-sm outline-none focus:border-accent" data-testid="input-customer-name" /></label><label className="text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground">Phone<input required minLength={8} value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="+962 7..." className="mt-2 h-12 w-full border-b border-border bg-transparent text-sm outline-none focus:border-accent" data-testid="input-customer-phone" /></label><label className="text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground">City<input required value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} className="mt-2 h-12 w-full border-b border-border bg-transparent text-sm outline-none focus:border-accent" data-testid="input-customer-city" /></label><label className="text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground sm:col-span-2">Delivery address<textarea required value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} rows={3} className="mt-2 w-full resize-none border-b border-border bg-transparent py-3 text-sm outline-none focus:border-accent" data-testid="input-customer-address" /></label></div><div className="mt-10"><p className="mb-4 text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground">Payment method</p><div className="grid gap-3 sm:grid-cols-2"><button type="button" onClick={() => setForm({ ...form, paymentMethod: 'cod' })} className={`flex items-start gap-3 border p-4 text-left ${form.paymentMethod === 'cod' ? 'border-foreground' : 'border-border'}`} data-testid="button-payment-cod"><span className={`mt-0.5 h-3 w-3 rounded-full border ${form.paymentMethod === 'cod' ? 'border-foreground bg-foreground' : 'border-muted-foreground'}`} /><span><strong className="block text-sm">Cash on delivery</strong><small className="mt-1 block text-xs text-muted-foreground">Pay when your order arrives.</small></span></button><button type="button" onClick={() => setForm({ ...form, paymentMethod: 'prepaid' })} className={`flex items-start gap-3 border p-4 text-left ${form.paymentMethod === 'prepaid' ? 'border-foreground' : 'border-border'}`} data-testid="button-payment-prepaid"><span className={`mt-0.5 h-3 w-3 rounded-full border ${form.paymentMethod === 'prepaid' ? 'border-foreground bg-foreground' : 'border-muted-foreground'}`} /><span><strong className="block text-sm">Prepaid</strong><small className="mt-1 block text-xs text-muted-foreground">We will contact you to confirm.</small></span></button></div></div>{mutation.isError && <p className="mt-5 border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive" data-testid="status-checkout-error">We could not place the order. Please try again or reach us on WhatsApp.</p>}<button disabled={mutation.isPending} className="mt-8 flex h-14 w-full items-center justify-center gap-3 bg-foreground text-[11px] font-bold uppercase tracking-[.18em] text-background hover:bg-accent disabled:opacity-50" data-testid="button-submit-order">{mutation.isPending ? 'Placing your order…' : 'Place order'} <ArrowRight size={15} /></button></form><aside className="h-fit border border-border bg-card p-6"><p className="text-[10px] font-bold uppercase tracking-[.2em] text-accent">Order summary</p><div className="mt-5">{items.map((item) => <div className="flex items-start justify-between gap-4 border-b border-border py-4 first:pt-0" key={`${item.product.id}-${item.size}`}><div><p className="text-sm font-semibold">{item.product.name}</p><p className="mt-1 text-[10px] uppercase tracking-[.13em] text-muted-foreground">Size {item.size} × {item.quantity}</p></div><span className="font-mono text-xs">{money(item.product.price * item.quantity)}</span></div>)}</div><div className="mt-5 flex items-center justify-between"><span className="text-xs uppercase tracking-[.14em] text-muted-foreground">Total</span><span className="font-mono text-lg">{money(total)}</span></div></aside></div></main>;
+  
+  return (
+    <main className="mx-auto max-w-[1240px] px-5 py-10 sm:px-8 lg:px-12 lg:py-16">
+      <div className="mb-10">
+        <p className="text-[10px] font-bold uppercase tracking-[.2em] text-accent">Finish the thought / 03</p>
+        <h1 className="display mt-4 text-5xl font-bold tracking-[-.07em] sm:text-7xl">Your details.</h1>
+        <p className="mt-4 text-sm text-muted-foreground">We deliver with care across Jordan. Cash on delivery is available.</p>
+      </div>
+      <div className="grid gap-14 lg:grid-cols-[1fr_380px]">
+        <div className="space-y-10">
+          <form onSubmit={handleLoyaltyLookup} className="border border-border bg-card p-6">
+            <p className="text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground mb-4">SULM Atelier Member?</p>
+            <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+              <input required minLength={6} value={loyaltyOrder} onChange={(e) => setLoyaltyOrder(e.target.value)} placeholder="Order number" className="h-10 w-full border-b border-border bg-transparent text-sm uppercase outline-none focus:border-accent" data-testid="input-checkout-loyalty-order" />
+              <input required minLength={8} value={loyaltyPhone} onChange={(e) => setLoyaltyPhone(e.target.value)} placeholder="Phone number" className="h-10 w-full border-b border-border bg-transparent text-sm outline-none focus:border-accent" data-testid="input-checkout-loyalty-phone" />
+              <button type="submit" disabled={loyalty.isPending || !loyaltyPhone || !loyaltyOrder} className="px-4 h-10 border border-foreground text-[10px] font-bold uppercase tracking-[.1em] hover:bg-foreground hover:text-background" data-testid="button-checkout-loyalty-lookup">{loyalty.isPending ? 'Checking...' : 'Check Wallet'}</button>
+            </div>
+            {loyalty.isError && <p className="mt-3 text-xs text-destructive">No loyalty profile found.</p>}
+            {loyalty.isSuccess && loyalty.data && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <p className="text-sm font-semibold mb-2">Available Wallet Credit: {loyalty.data.walletCredit.toFixed(2)} JOD</p>
+                {loyalty.data.walletCredit > 0 && (
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <input type="checkbox" checked={useWallet} onChange={(e) => { setUseWallet(e.target.checked); setWalletAmount(maxWallet); }} data-testid="checkbox-use-wallet" />
+                    Use wallet credit for this order
+                  </label>
+                )}
+              </div>
+            )}
+          </form>
+
+          <form id="checkout-form" onSubmit={submit} className="max-w-xl">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <label className="text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground sm:col-span-2">Full name<input required minLength={2} value={form.customerName} onChange={(event) => setForm({ ...form, customerName: event.target.value })} className="mt-2 h-12 w-full border-b border-border bg-transparent text-sm outline-none focus:border-accent" data-testid="input-customer-name" /></label>
+              <label className="text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground">Phone<input required minLength={8} value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="+962 7..." className="mt-2 h-12 w-full border-b border-border bg-transparent text-sm outline-none focus:border-accent" data-testid="input-customer-phone" /></label>
+              <label className="text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground">City<input required value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} className="mt-2 h-12 w-full border-b border-border bg-transparent text-sm outline-none focus:border-accent" data-testid="input-customer-city" /></label>
+              <label className="text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground sm:col-span-2">Delivery address<textarea required value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} rows={3} className="mt-2 w-full resize-none border-b border-border bg-transparent py-3 text-sm outline-none focus:border-accent" data-testid="input-customer-address" /></label>
+            </div>
+            <div className="mt-10">
+              <p className="mb-4 text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground">Payment method</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button type="button" onClick={() => setForm({ ...form, paymentMethod: 'cod' })} className={`flex items-start gap-3 border p-4 text-left ${form.paymentMethod === 'cod' ? 'border-foreground' : 'border-border'}`} data-testid="button-payment-cod"><span className={`mt-0.5 h-3 w-3 rounded-full border ${form.paymentMethod === 'cod' ? 'border-foreground bg-foreground' : 'border-muted-foreground'}`} /><span><strong className="block text-sm">Cash on delivery</strong><small className="mt-1 block text-xs text-muted-foreground">Pay when your order arrives.</small></span></button>
+                <button type="button" onClick={() => setForm({ ...form, paymentMethod: 'prepaid' })} className={`flex items-start gap-3 border p-4 text-left ${form.paymentMethod === 'prepaid' ? 'border-foreground' : 'border-border'}`} data-testid="button-payment-prepaid"><span className={`mt-0.5 h-3 w-3 rounded-full border ${form.paymentMethod === 'prepaid' ? 'border-foreground bg-foreground' : 'border-muted-foreground'}`} /><span><strong className="block text-sm">Prepaid</strong><small className="mt-1 block text-xs text-muted-foreground">We will contact you to confirm.</small></span></button>
+              </div>
+            </div>
+            {mutation.isError && <p className="mt-5 border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive" data-testid="status-checkout-error">We could not place the order. Please try again or reach us on WhatsApp.</p>}
+            <button disabled={mutation.isPending} className="mt-8 flex h-14 w-full items-center justify-center gap-3 bg-foreground text-[11px] font-bold uppercase tracking-[.18em] text-background hover:bg-accent disabled:opacity-50" data-testid="button-submit-order">{mutation.isPending ? 'Placing your order…' : 'Place order'} <ArrowRight size={15} /></button>
+          </form>
+        </div>
+
+        <aside className="h-fit border border-border bg-card p-6">
+          <p className="text-[10px] font-bold uppercase tracking-[.2em] text-accent">Order summary</p>
+          <div className="mt-5">
+            {items.map((item) => (
+              <div className="flex items-start justify-between gap-4 border-b border-border py-4 first:pt-0" key={`${item.product.id}-${item.size}`}>
+                <div>
+                  <p className="text-sm font-semibold">{item.product.name}</p>
+                  <p className="mt-1 text-[10px] uppercase tracking-[.13em] text-muted-foreground">Size {item.size} × {item.quantity}</p>
+                </div>
+                <span className="font-mono text-xs">{money(item.product.price * item.quantity)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 space-y-3">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Subtotal</span>
+              <span className="font-mono">{money(total)}</span>
+            </div>
+            {discount > 0 && (
+              <div className="flex items-center justify-between text-sm text-accent">
+                <span>Bundle Savings {quoteData?.appliedRule ? `(${quoteData.appliedRule})` : ''}</span>
+                <span className="font-mono">-{money(discount)}</span>
+              </div>
+            )}
+            {useWallet && (
+              <div className="flex items-center justify-between text-sm text-green-600">
+                <span>Wallet Credit Used</span>
+                <span className="font-mono">-{money(walletAmount)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between border-t border-border pt-3">
+              <span className="text-xs uppercase tracking-[.14em] text-muted-foreground">Final Total</span>
+              <span className="font-mono text-lg">{money(finalTotal)}</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </main>
+  );
 }
+
 
 function TrackOrder() {
   const [form, setForm] = useState({ orderNumber: '', phone: '' });
@@ -336,9 +615,45 @@ function OrderResult({ order }: { order: Order }) {
   return <div className="slide-in mt-5 border border-border bg-card p-6 sm:p-9" data-testid="status-order-result"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[.2em] text-accent">Order found</p><h2 className="mt-2 font-mono text-xl">{order.orderNumber}</h2></div><PackageCheck size={23} strokeWidth={1.2} className="text-accent" /></div><div className="my-8 grid grid-cols-5 gap-1">{statuses.map((status, index) => <div key={status}><div className={`h-1 ${index <= current ? 'bg-accent' : 'bg-muted'}`} /><p className={`mt-3 text-[8px] font-bold uppercase tracking-[.08em] ${index === current ? 'text-foreground' : 'text-muted-foreground'}`}>{status.replace('_', ' ')}</p></div>)}</div><div className="grid gap-4 border-t border-border pt-5 text-sm sm:grid-cols-2"><p><span className="block text-[10px] uppercase tracking-[.14em] text-muted-foreground">Delivering to</span>{order.city}</p><p><span className="block text-[10px] uppercase tracking-[.14em] text-muted-foreground">Total</span><span className="font-mono">{money(order.total)}</span></p></div></div>;
 }
 
+
 function Success({ order }: { order: Order }) {
-  return <main className="mx-auto max-w-[760px] px-5 py-24 text-center sm:px-8 lg:py-32"><div className="mx-auto grid h-16 w-16 place-items-center rounded-full border border-accent text-accent"><Check size={28} strokeWidth={1.2} /></div><p className="mt-8 text-[10px] font-bold uppercase tracking-[.23em] text-accent">Order confirmed / {order.orderNumber}</p><h1 className="display mt-5 text-6xl font-bold leading-[.88] tracking-[-.08em] sm:text-8xl">Good choice.</h1><p className="mx-auto mt-8 max-w-md text-sm leading-7 text-muted-foreground">Thanks, {order.customerName.split(' ')[0]}. We have your order and will be in touch on {order.phone} before it leaves us.</p><p className="font-arabic mt-5 text-sm text-muted-foreground" dir="rtl">شكراً لاختيارك سولم. سنكون على تواصل قريباً.</p><div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row"><Link href="/" className="inline-flex h-12 items-center justify-center gap-2 bg-foreground px-7 text-[10px] font-bold uppercase tracking-[.17em] text-background" data-testid="link-success-shop">Continue shopping <ArrowRight size={14} /></Link><Link href="/track-order" className="inline-flex h-12 items-center justify-center border border-border px-7 text-[10px] font-bold uppercase tracking-[.17em]" data-testid="link-success-track">Track order</Link></div></main>;
+  return (
+    <main className="mx-auto max-w-[760px] px-5 py-24 text-center sm:px-8 lg:py-32">
+      <div className="mx-auto grid h-16 w-16 place-items-center rounded-full border border-accent text-accent">
+        <Check size={28} strokeWidth={1.2} />
+      </div>
+      <p className="mt-8 text-[10px] font-bold uppercase tracking-[.23em] text-accent">Order confirmed / {order.orderNumber}</p>
+      <h1 className="display mt-5 text-6xl font-bold leading-[.88] tracking-[-.08em] sm:text-8xl">Good choice.</h1>
+      <p className="mx-auto mt-8 max-w-md text-sm leading-7 text-muted-foreground">
+        Thanks, {order.customerName.split(' ')[0]}. We have your order and will be in touch on {order.phone} before it leaves us.
+      </p>
+
+      {(order.loyaltyPointsEarned > 0 || order.bundleDiscount > 0 || order.walletCreditUsed > 0) && (
+        <div className="mt-8 border border-border bg-card p-6 mx-auto max-w-sm text-left slide-in">
+          <p className="text-[10px] font-bold uppercase tracking-[.1em] text-muted-foreground mb-4">Value Summary</p>
+          <div className="space-y-2 text-sm">
+            {order.bundleDiscount > 0 && (
+              <p className="flex justify-between"><span className="text-muted-foreground">Bundle Savings:</span><span className="font-mono text-accent">{money(order.bundleDiscount)}</span></p>
+            )}
+            {order.walletCreditUsed > 0 && (
+              <p className="flex justify-between"><span className="text-muted-foreground">Wallet Used:</span><span className="font-mono text-green-600">{money(order.walletCreditUsed)}</span></p>
+            )}
+            {order.loyaltyPointsEarned > 0 && (
+              <p className="flex justify-between border-t border-border pt-2 mt-2"><span className="text-muted-foreground">Points Earned:</span><span className="font-mono font-semibold">+{order.loyaltyPointsEarned}</span></p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <p className="font-arabic mt-8 text-sm text-muted-foreground" dir="rtl">شكراً لاختيارك سولم. سنكون على تواصل قريباً.</p>
+      <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
+        <Link href="/" className="inline-flex h-12 items-center justify-center gap-2 bg-foreground px-7 text-[10px] font-bold uppercase tracking-[.17em] text-background" data-testid="link-success-shop">Continue shopping <ArrowRight size={14} /></Link>
+        <Link href="/track-order" className="inline-flex h-12 items-center justify-center border border-border px-7 text-[10px] font-bold uppercase tracking-[.17em]" data-testid="link-success-track">Track order</Link>
+      </div>
+    </main>
+  );
 }
+
 
 function NotFoundPage() {
   return <main className="mx-auto max-w-[700px] px-5 py-32 text-center"><p className="font-mono text-sm text-accent">404 / OUT OF FRAME</p><h1 className="display mt-5 text-7xl font-bold tracking-[-.08em]">Not this one.</h1><p className="mx-auto mt-5 max-w-sm text-sm leading-7 text-muted-foreground">The page moved on. The edit is still here.</p><Link href="/" className="mt-9 inline-flex items-center gap-2 border-b border-foreground pb-2 text-[10px] font-bold uppercase tracking-[.17em]" data-testid="link-not-found-home"><ArrowLeft size={14} /> Return home</Link></main>;
@@ -354,14 +669,73 @@ function RouterContent({ cart, setCart, cartOpen, setCartOpen }: { cart: CartIte
     setCartOpen(true);
   };
   const [location] = useLocation();
-  return <ErrorBoundary resetKey={location}><div className="noise sulm-shell min-h-[100dvh]"><Header cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)} onCart={() => setCartOpen(true)} onMenu={() => setMenuOpen(!menuOpen)} />{menuOpen && <div className="fixed inset-x-0 top-[72px] z-30 border-b border-border bg-background p-6 lg:hidden"><div className="grid gap-5 text-[11px] font-bold uppercase tracking-[.17em]"><a href="#shop" onClick={() => setMenuOpen(false)} data-testid="mobile-link-shop">Shop</a><a href="#story" onClick={() => setMenuOpen(false)} data-testid="mobile-link-story">The SULM standard</a><Link href="/track-order" onClick={() => setMenuOpen(false)} data-testid="mobile-link-track">Track order</Link></div></div>}<Switch><Route path="/" component={() => <Home onAdd={add} />} /><Route path="/product/:slug" component={() => <ProductPage onAdd={add} />} /><Route path="/track-order" component={TrackOrder} /><Route path="/checkout" component={() => success ? <Success order={success} /> : <Checkout items={cart} onSuccess={(order) => { setSuccess(order); setCart([]); }} />} /><Route component={NotFoundPage} /></Switch>{location !== '/checkout' && <Footer />}<CartDrawer items={cart} open={cartOpen} onClose={() => setCartOpen(false)} onChange={setCart} /></div></ErrorBoundary>;
+  return <ErrorBoundary resetKey={location}><div className="noise sulm-shell min-h-[100dvh]"><Header cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)} onCart={() => setCartOpen(true)} onMenu={() => setMenuOpen(!menuOpen)} />{menuOpen && <div className="fixed inset-x-0 top-[72px] z-30 border-b border-border bg-background p-6 lg:hidden"><div className="grid gap-5 text-[11px] font-bold uppercase tracking-[.17em]"><a href="#shop" onClick={() => setMenuOpen(false)} data-testid="mobile-link-shop">Shop</a><a href="#story" onClick={() => setMenuOpen(false)} data-testid="mobile-link-story">The SULM standard</a><Link href="/track-order" onClick={() => setMenuOpen(false)} data-testid="mobile-link-track">Track</Link><Link href="/returns" onClick={() => setMenuOpen(false)} data-testid="mobile-link-returns">Returns</Link><Link href="/loyalty" onClick={() => setMenuOpen(false)} data-testid="mobile-link-loyalty">Atelier</Link></div></div>}<Switch><Route path="/" component={() => <Home onAdd={add} />} /><Route path="/product/:slug" component={() => <ProductPage onAdd={add} />} /><Route path="/track-order" component={TrackOrder} /><Route path="/loyalty" component={Loyalty} /><Route path="/returns" component={Returns} /><Route path="/checkout" component={() => success ? <Success order={success} /> : <Checkout items={cart} onSuccess={(order) => { setSuccess(order); setCart([]); }} />} /><Route component={NotFoundPage} /></Switch>{location !== '/checkout' && <Footer />}<CartDrawer items={cart} open={cartOpen} onClose={() => setCartOpen(false)} onChange={setCart} /></div></ErrorBoundary>;
+}
+
+
+function CartReminderPolling() {
+  const token = localStorage.getItem('sulm-cart-reminder');
+  const [activeToken, setActiveToken] = useState(token);
+  const [showBanner, setShowBanner] = useState(false);
+
+  useEffect(() => {
+    const handleStorage = () => setActiveToken(localStorage.getItem('sulm-cart-reminder'));
+    window.addEventListener('storage', handleStorage);
+    // Overriding push/pop state to intercept local changes isn't perfect, 
+    // so we'll just check periodically or rely on useGetCartReminder to be enabled.
+    const interval = setInterval(() => {
+      setActiveToken(localStorage.getItem('sulm-cart-reminder'));
+    }, 5000);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      clearInterval(interval);
+    };
+  }, []);
+
+  const query = useGetCartReminder(activeToken || '', {
+    query: {
+      enabled: Boolean(activeToken),
+      refetchInterval: 10000,
+      queryKey: getGetCartReminderQueryKey(activeToken || ''),
+    }
+  });
+
+  const markDelivered = useMarkCartReminderDelivered();
+
+  useEffect(() => {
+    if (query.data?.due && activeToken) {
+      setShowBanner(true);
+      markDelivered.mutate({ token: activeToken }, {
+        onSettled: () => {
+          localStorage.removeItem('sulm-cart-reminder');
+          window.dispatchEvent(new Event('sulm-cart-reminder-change'));
+          setActiveToken(null);
+        }
+      });
+    }
+  }, [query.data?.due, activeToken, markDelivered]);
+
+  if (!showBanner) return null;
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50 slide-in max-w-sm border border-border bg-foreground text-background p-5 shadow-2xl" data-testid="banner-cart-reminder">
+      <div className="flex justify-between items-start gap-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-[.2em] text-accent">Don't leave it behind</p>
+          <p className="mt-2 text-sm leading-6 text-background/85">Your selected pieces are still waiting in your bag. They might sell out soon.</p>
+        </div>
+        <button onClick={() => setShowBanner(false)} className="text-background/50 hover:text-background" data-testid="button-close-reminder"><X size={16} /></button>
+      </div>
+      <Link href="/checkout" onClick={() => setShowBanner(false)} className="mt-5 inline-flex items-center gap-2 border-b border-background/60 pb-1 text-[10px] font-bold uppercase tracking-[.18em] text-background hover:border-accent hover:text-accent" data-testid="link-reminder-checkout">Complete order <ArrowRight size={14} /></Link>
+    </div>
+  );
 }
 
 function App() {
   const [cart, setCartState] = useState<CartItem[]>(() => { try { return JSON.parse(localStorage.getItem('sulm-cart') ?? '[]') as CartItem[]; } catch { return []; } });
   const [cartOpen, setCartOpen] = useState(false);
   const setCart = (items: CartItem[]) => { setCartState(items); localStorage.setItem('sulm-cart', JSON.stringify(items)); };
-  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><RouterContent cart={cart} setCart={setCart} cartOpen={cartOpen} setCartOpen={setCartOpen} /></WouterRouter><Toaster /></TooltipProvider></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><RouterContent cart={cart} setCart={setCart} cartOpen={cartOpen} setCartOpen={setCartOpen} /></WouterRouter><Toaster /><CartReminderPolling /></TooltipProvider></QueryClientProvider>;
 }
 
 export default App;
