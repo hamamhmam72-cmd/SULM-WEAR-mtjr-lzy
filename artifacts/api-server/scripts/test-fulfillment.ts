@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import {
   db,
   inventoryLogsTable,
@@ -10,12 +10,14 @@ import {
   productVariantsTable,
 } from "@workspace/db";
 import { transitionOrder } from "../src/lib/fulfillment";
+import { saveProduct } from "../src/routes/admin";
 
 const suffix = `${Date.now()}-${process.pid}`;
 let productId: number | undefined;
 let orderId: number | undefined;
 let canceledOrderId: number | undefined;
 let loyaltyAccountId: number | undefined;
+const concurrentOrderIds: number[] = [];
 
 try {
   const [product] = await db.insert(productsTable).values({
@@ -29,16 +31,18 @@ try {
     image: "/images/test.jpg",
     accent: "#000000",
     sizes: ["M"],
-    stock: 12,
+    stock: 19,
     featured: false,
     story: "Temporary",
     status: "draft",
   }).returning();
   productId = product.id;
 
-  const [first, second] = await db.insert(productVariantsTable).values([
+  const [first, second, raceVariant, overdrawVariant] = await db.insert(productVariantsTable).values([
     { productId, sku: `TEST-A-${suffix}`, colorName: "Black", colorHex: "#000000", size: "M", stock: 5, initialStock: 5 },
     { productId, sku: `TEST-B-${suffix}`, colorName: "Silver", colorHex: "#c0c0c0", size: "M", stock: 7, initialStock: 7 },
+    { productId, sku: `TEST-RACE-${suffix}`, colorName: "Race", colorHex: "#808080", size: "M", stock: 4, initialStock: 4 },
+    { productId, sku: `TEST-OVERDRAW-${suffix}`, colorName: "Overdraw", colorHex: "#404040", size: "M", stock: 3, initialStock: 3 },
   ]).returning();
 
   const [order] = await db.insert(ordersTable).values({
@@ -81,6 +85,130 @@ try {
   assert.equal(secondAfter.stock, 5, "selected variant must decrement exactly once");
   assert.equal(logs.length, 1, "one authoritative inventory log is required");
   assert.equal(logs[0].delta, -2);
+
+  const staleCatalogInput = {
+    slug: product.slug,
+    name: product.name,
+    nameAr: product.nameAr,
+    category: product.category,
+    price: Number(product.price),
+    compareAtPrice: null,
+    description: product.description,
+    descriptionAr: product.descriptionAr,
+    image: product.image,
+    accent: product.accent,
+    featured: product.featured,
+    story: product.story,
+    status: product.status,
+    variants: [first, second, raceVariant, overdrawVariant].map((variant) => ({
+      id: variant.id,
+      sku: variant.sku,
+      colorName: variant.colorName,
+      colorHex: variant.colorHex,
+      size: variant.size,
+      price: null,
+      compareAtPrice: null,
+      stock: variant.stock,
+      expectedStock: variant.stock,
+      chestMm: null,
+      lengthMm: null,
+      shouldersMm: null,
+      sleevesMm: null,
+      media: [],
+      active: true,
+    })),
+  };
+
+  const concurrentOrders = await db.insert(ordersTable).values([1, 2].map((number) => ({
+    orderNumber: `RACE-${number}-${suffix}`,
+    customerName: `Concurrent Test ${number}`,
+    phone: `+96270000000${number + 1}`,
+    city: "Amman",
+    address: "Temporary",
+    paymentMethod: "cod",
+    status: "new",
+    subtotal: "20.00",
+    total: "20.00",
+    items: [{
+      productName: product.name,
+      productSlug: product.slug,
+      variantId: raceVariant.id,
+      sku: raceVariant.sku,
+      colorName: raceVariant.colorName,
+      colorHex: raceVariant.colorHex,
+      size: raceVariant.size,
+      quantity: 2,
+      unitPrice: 10,
+    }],
+  }))).returning();
+  concurrentOrderIds.push(...concurrentOrders.map((row) => row.id));
+  for (const concurrentOrder of concurrentOrders) {
+    await db.transaction((tx) => transitionOrder(tx, concurrentOrder.id, "confirmed", "integration-test"));
+    await db.transaction((tx) => transitionOrder(tx, concurrentOrder.id, "processing", "integration-test"));
+  }
+
+  await Promise.all(concurrentOrders.map((concurrentOrder) =>
+    db.transaction((tx) => transitionOrder(tx, concurrentOrder.id, "packed", "integration-test")),
+  ));
+  await Promise.all(concurrentOrders.map((concurrentOrder) =>
+    db.transaction((tx) => transitionOrder(tx, concurrentOrder.id, "packed", "integration-test")),
+  ));
+
+  const [raceAfter] = await db.select().from(productVariantsTable).where(eq(productVariantsTable.id, raceVariant.id));
+  assert.equal(raceAfter.stock, 0, "concurrent packing must never take stock below zero");
+  for (const concurrentOrder of concurrentOrders) {
+    const orderLogs = await db.select().from(inventoryLogsTable).where(eq(inventoryLogsTable.orderId, concurrentOrder.id));
+    assert.equal(orderLogs.length, 1, "each order and variant must have one inventory log");
+    assert.equal(orderLogs[0].variantId, raceVariant.id);
+    assert.equal(orderLogs[0].delta, -2);
+  }
+
+  const overdrawOrders = await db.insert(ordersTable).values([1, 2].map((number) => ({
+    orderNumber: `OVERDRAW-${number}-${suffix}`,
+    customerName: `Overdraw Test ${number}`,
+    phone: `+96270000001${number}`,
+    city: "Amman",
+    address: "Temporary",
+    paymentMethod: "cod",
+    status: "new",
+    subtotal: "20.00",
+    total: "20.00",
+    items: [{
+      productName: product.name,
+      productSlug: product.slug,
+      variantId: overdrawVariant.id,
+      sku: overdrawVariant.sku,
+      colorName: overdrawVariant.colorName,
+      colorHex: overdrawVariant.colorHex,
+      size: overdrawVariant.size,
+      quantity: 2,
+      unitPrice: 10,
+    }],
+  }))).returning();
+  concurrentOrderIds.push(...overdrawOrders.map((row) => row.id));
+  for (const overdrawOrder of overdrawOrders) {
+    await db.transaction((tx) => transitionOrder(tx, overdrawOrder.id, "confirmed", "integration-test"));
+    await db.transaction((tx) => transitionOrder(tx, overdrawOrder.id, "processing", "integration-test"));
+  }
+  const overdrawResults = await Promise.allSettled(overdrawOrders.map((overdrawOrder) =>
+    db.transaction((tx) => transitionOrder(tx, overdrawOrder.id, "packed", "integration-test")),
+  ));
+  assert.equal(overdrawResults.filter((result) => result.status === "fulfilled").length, 1, "only one oversubscribed order may pack");
+  assert.equal(overdrawResults.filter((result) => result.status === "rejected").length, 1, "one oversubscribed order must be rejected");
+  const [overdrawAfter] = await db.select().from(productVariantsTable).where(eq(productVariantsTable.id, overdrawVariant.id));
+  assert.equal(overdrawAfter.stock, 1, "oversubscribed packing must preserve non-negative stock");
+  const overdrawLogCounts = await Promise.all(overdrawOrders.map(async (overdrawOrder) =>
+    (await db.select().from(inventoryLogsTable).where(eq(inventoryLogsTable.orderId, overdrawOrder.id))).length,
+  ));
+  assert.deepEqual(overdrawLogCounts.sort(), [0, 1], "only the successfully packed order may write a ledger row");
+
+  await assert.rejects(
+    saveProduct(staleCatalogInput, product.id, "integration-test"),
+    /Stock changed/,
+    "a stale catalog form must not overwrite concurrently deducted inventory",
+  );
+  const [raceAfterStaleEdit] = await db.select().from(productVariantsTable).where(eq(productVariantsTable.id, raceVariant.id));
+  assert.equal(raceAfterStaleEdit.stock, 0, "rejected stale catalog edit must roll back completely");
 
   const [account] = await db.insert(loyaltyAccountsTable).values({
     phoneHash: `fulfillment-test-${suffix}`,
@@ -133,6 +261,10 @@ try {
   if (canceledOrderId) await db.delete(ordersTable).where(eq(ordersTable.id, canceledOrderId));
   if (loyaltyAccountId) await db.delete(loyaltyAccountsTable).where(eq(loyaltyAccountsTable.id, loyaltyAccountId));
   if (orderId) await db.delete(inventoryLogsTable).where(eq(inventoryLogsTable.orderId, orderId));
+  for (const concurrentOrderId of concurrentOrderIds) {
+    await db.delete(inventoryLogsTable).where(eq(inventoryLogsTable.orderId, concurrentOrderId));
+  }
+  if (concurrentOrderIds.length) await db.delete(ordersTable).where(inArray(ordersTable.id, concurrentOrderIds));
   if (orderId) await db.delete(ordersTable).where(eq(ordersTable.id, orderId));
   if (productId) await db.delete(productVariantsTable).where(eq(productVariantsTable.productId, productId));
   if (productId) await db.delete(productsTable).where(eq(productsTable.id, productId));

@@ -69,7 +69,7 @@ router.get("/admin/products", async (_req, res) => {
   res.json(GetAdminProductsResponse.parse(output));
 });
 
-async function saveProduct(input: any, id?: number, actorUserId?: string): Promise<any> {
+export async function saveProduct(input: any, id?: number, actorUserId?: string): Promise<any> {
   return db.transaction(async (tx) => {
     const values = { slug: input.slug, name: input.name, nameAr: input.nameAr, category: input.category, price: input.price.toFixed(2), compareAtPrice: input.compareAtPrice == null ? null : input.compareAtPrice.toFixed(2), description: input.description, descriptionAr: input.descriptionAr, image: input.image, accent: input.accent, featured: input.featured, story: input.story, status: input.status, sizes: [...new Set(input.variants.map((v: any) => v.size))] as string[], stock: input.variants.reduce((n: number, v: any) => n + v.stock, 0), updatedAt: new Date() };
     let product: any;
