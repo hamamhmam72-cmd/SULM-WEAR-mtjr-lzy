@@ -1,4 +1,4 @@
-import { type CSSProperties, type FormEvent, useEffect, useMemo, useState, useRef } from 'react';
+import { createContext, type CSSProperties, type FormEvent, useContext, useEffect, useMemo, useState, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   ArrowDownRight,
@@ -61,6 +61,220 @@ import '@/index.css';
 const queryClient = new QueryClient();
 const PHONE = '+962 7 8667 7153';
 const INSTAGRAM = 'https://www.instagram.com/sulm_wear?stkn=MTRlend5dHM3emxkeQ==';
+type Locale = 'en' | 'ar';
+
+const translations = {
+  en: {
+    shop: 'Shop',
+    standard: 'The SULM standard',
+    track: 'Track',
+    returns: 'Returns',
+    atelier: 'Atelier',
+    bag: 'Bag',
+    featured: 'Featured',
+    addToBag: 'Add to bag',
+    edition: 'Edition 01 / Amman',
+    heroTitle: 'Less noise.',
+    heroTitleAccent: 'More form.',
+    heroBody: 'A considered wardrobe for the space between plans. Quietly sharp, built for the way Jordan moves now.',
+    heroAction: 'Explore the collection',
+    moveWithIntent: 'Move with intent',
+    dailyUniform: 'The daily uniform',
+    allPieces: 'All pieces',
+    search: 'Search the edit',
+    noProducts: 'Nothing here yet.',
+    resetFilters: 'Reset filters',
+    navigate: 'Navigate',
+    shopAll: 'Shop all',
+    ourStandard: 'Our standard',
+    trackOrder: 'Track your order',
+    connect: 'Connect',
+    whatsapp: 'WhatsApp us',
+    noteFromAmman: 'A note from Amman',
+    footerLine: 'Good clothes should disappear into your day.',
+    switchToArabic: 'العربية',
+    switchToEnglish: 'English',
+    lightMode: 'Switch to light mode',
+    darkMode: 'Switch to dark mode',
+    openMenu: 'Open menu',
+    closeBag: 'Close bag',
+    productOffRail: 'This piece is off the rail.',
+    productMoved: 'The product may have moved on, or the link is not quite right.',
+    backToEdit: 'Back to the edit',
+    color: 'Color',
+    selectSize: 'Select size',
+    remaining: 'remaining',
+    chooseSize: 'Choose a size to continue',
+    addSelected: 'Add selected piece',
+    delivery: 'Delivery across Jordan in 2–4 days',
+    exchanges: 'Easy exchanges within 7 days',
+    smartFit: 'Smart fit / quick guide',
+    findStartingPoint: 'Find your starting point',
+    height: 'Height (cm)',
+    weight: 'Weight (kg)',
+    calculateFit: 'Calculate fit',
+    startingPoint: 'Your starting point',
+    looserSilhouette: 'Prefer a looser silhouette? Go one size up.',
+    productStory: 'The product story',
+    yourBag: 'Your bag',
+    pieces: 'pieces',
+    piece: 'piece',
+    consideredStart: 'A considered start',
+    bagQuiet: 'Your bag is quiet.',
+    bagQuietBody: 'Start with one piece you will reach for tomorrow.',
+    exploreEdit: 'Explore the edit',
+    saveBag: 'Save your bag for later',
+    whatsappNumber: 'WhatsApp number',
+    save: 'Save',
+    reminderConsent: 'I agree to receive a reminder message.',
+    reminderSaved: "We'll remind you about this bag.",
+    cancel: 'Cancel',
+    bundleSavings: 'Bundle savings',
+    estimatedTotal: 'Estimated total',
+    checkout: 'Proceed to checkout',
+    finishThought: 'Finish the thought / 03',
+    yourDetails: 'Your details.',
+    deliverCare: 'We deliver with care across Jordan. Cash on delivery is available.',
+    nothingCheckout: 'Nothing to check out.',
+    bagWaiting: 'Your bag is waiting for the first piece.',
+    returnEdit: 'Return to the edit',
+    whereNow: 'Where is it now?',
+    trackIntro: 'Enter the order number from your confirmation and the phone number used at checkout.',
+    needHelp: 'Need help?',
+    orderNumber: 'Order number',
+    phoneNumber: 'Phone number',
+    findOrder: 'Find my order',
+    lookingUp: 'Looking it up…',
+    orderNotFound: 'We could not find that order.',
+    checkDetails: 'Check the number and phone, then try again.',
+    orderFound: 'Order found',
+    deliveringTo: 'Delivering to',
+    total: 'Total',
+    orderConfirmed: 'Order confirmed',
+    goodChoice: 'Good choice.',
+    continueShopping: 'Continue shopping',
+    notThisOne: 'Not this one.',
+    pageMoved: 'The page moved on. The edit is still here.',
+    returnHome: 'Return home',
+  },
+  ar: {
+    shop: 'المتجر',
+    standard: 'معيار سولم',
+    track: 'تتبع',
+    returns: 'الإرجاع',
+    atelier: 'أتيليه',
+    bag: 'الحقيبة',
+    featured: 'مميز',
+    addToBag: 'أضف إلى الحقيبة',
+    edition: 'الإصدار 01 / عمّان',
+    heroTitle: 'ضجيج أقل.',
+    heroTitleAccent: 'حضور أكثر.',
+    heroBody: 'خزانة مدروسة للمساحة بين خططك. قطع هادئة وحادة، مصممة لإيقاع الأردن اليوم.',
+    heroAction: 'استكشف المجموعة',
+    moveWithIntent: 'تحرك بقصد',
+    dailyUniform: 'الزي اليومي',
+    allPieces: 'كل القطع',
+    search: 'ابحث في المجموعة',
+    noProducts: 'لا توجد قطع هنا بعد.',
+    resetFilters: 'إعادة ضبط الفلاتر',
+    navigate: 'تصفح',
+    shopAll: 'كل المنتجات',
+    ourStandard: 'معيارنا',
+    trackOrder: 'تتبع طلبك',
+    connect: 'تواصل معنا',
+    whatsapp: 'تواصل عبر واتساب',
+    noteFromAmman: 'رسالة من عمّان',
+    footerLine: 'الملابس الجيدة تختفي في تفاصيل يومك.',
+    switchToArabic: 'العربية',
+    switchToEnglish: 'English',
+    lightMode: 'التبديل إلى الوضع الفاتح',
+    darkMode: 'التبديل إلى الوضع الداكن',
+    openMenu: 'فتح القائمة',
+    closeBag: 'إغلاق الحقيبة',
+    productOffRail: 'هذه القطعة غير متاحة حالياً.',
+    productMoved: 'ربما انتقل المنتج أو أن الرابط غير صحيح.',
+    backToEdit: 'العودة إلى المجموعة',
+    color: 'اللون',
+    selectSize: 'اختر المقاس',
+    remaining: 'متبقي',
+    chooseSize: 'اختر مقاساً للمتابعة',
+    addSelected: 'أضف القطعة المختارة',
+    delivery: 'التوصيل داخل الأردن خلال 2–4 أيام',
+    exchanges: 'استبدال سهل خلال 7 أيام',
+    smartFit: 'مقاسك الذكي / دليل سريع',
+    findStartingPoint: 'اعرف مقاسك المبدئي',
+    height: 'الطول (سم)',
+    weight: 'الوزن (كغ)',
+    calculateFit: 'احسب المقاس',
+    startingPoint: 'مقاسك المبدئي',
+    looserSilhouette: 'تفضل قصة أوسع؟ اختر مقاساً أكبر.',
+    productStory: 'قصة القطعة',
+    yourBag: 'حقيبتك',
+    pieces: 'قطع',
+    piece: 'قطعة',
+    consideredStart: 'بداية مدروسة',
+    bagQuiet: 'حقيبتك فارغة.',
+    bagQuietBody: 'ابدأ بقطعة واحدة ستعود إليها غداً.',
+    exploreEdit: 'استكشف المجموعة',
+    saveBag: 'احفظ حقيبتك لوقت لاحق',
+    whatsappNumber: 'رقم واتساب',
+    save: 'حفظ',
+    reminderConsent: 'أوافق على استلام رسالة تذكير.',
+    reminderSaved: 'سنذكّرك بهذه الحقيبة.',
+    cancel: 'إلغاء',
+    bundleSavings: 'خصم المجموعة',
+    estimatedTotal: 'الإجمالي المتوقع',
+    checkout: 'المتابعة إلى الدفع',
+    finishThought: 'أكمل طلبك / 03',
+    yourDetails: 'بياناتك.',
+    deliverCare: 'نوصل بعناية إلى جميع أنحاء الأردن. الدفع عند الاستلام متاح.',
+    nothingCheckout: 'لا توجد منتجات للدفع.',
+    bagWaiting: 'حقيبتك بانتظار القطعة الأولى.',
+    returnEdit: 'العودة إلى المجموعة',
+    whereNow: 'أين وصل طلبك؟',
+    trackIntro: 'أدخل رقم الطلب من رسالة التأكيد ورقم الهاتف المستخدم عند الدفع.',
+    needHelp: 'تحتاج مساعدة؟',
+    orderNumber: 'رقم الطلب',
+    phoneNumber: 'رقم الهاتف',
+    findOrder: 'ابحث عن طلبي',
+    lookingUp: 'جارٍ البحث…',
+    orderNotFound: 'لم نتمكن من العثور على هذا الطلب.',
+    checkDetails: 'تحقق من الرقم والهاتف ثم حاول مرة أخرى.',
+    orderFound: 'تم العثور على الطلب',
+    deliveringTo: 'التوصيل إلى',
+    total: 'الإجمالي',
+    orderConfirmed: 'تم تأكيد الطلب',
+    goodChoice: 'اختيار موفق.',
+    continueShopping: 'متابعة التسوق',
+    notThisOne: 'ليست هذه الصفحة.',
+    pageMoved: 'ربما انتقلت الصفحة، لكن المجموعة ما زالت هنا.',
+    returnHome: 'العودة للرئيسية',
+  },
+} as const;
+
+type TranslationKey = keyof typeof translations.en;
+type LanguageContextValue = { locale: Locale; setLocale: (locale: Locale) => void; t: (key: TranslationKey) => string };
+const LanguageContext = createContext<LanguageContextValue | null>(null);
+
+function LanguageProvider({ children }: { children: React.ReactNode }) {
+  const [locale, setLocaleState] = useState<Locale>(() => (localStorage.getItem('sulm-locale') as Locale) || 'en');
+  const setLocale = (nextLocale: Locale) => {
+    setLocaleState(nextLocale);
+    localStorage.setItem('sulm-locale', nextLocale);
+  };
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    document.documentElement.dir = locale === 'ar' ? 'rtl' : 'ltr';
+  }, [locale]);
+  const value = useMemo(() => ({ locale, setLocale, t: (key: TranslationKey) => translations[locale][key] }), [locale]);
+  return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
+}
+
+function useLanguage() {
+  const context = useContext(LanguageContext);
+  if (!context) throw new Error('useLanguage must be used within LanguageProvider');
+  return context;
+}
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
@@ -230,6 +444,7 @@ function ProductVisual({ product, large = false }: { product: Product; large?: b
 
 function Header({ cartCount, onCart, onMenu }: { cartCount: number; onCart: () => void; onMenu: () => void }) {
   const [location] = useLocation();
+  const { locale, setLocale, t } = useLanguage();
   const [dark, setDark] = useState(() => localStorage.getItem('sulm-theme') === 'dark');
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
@@ -239,7 +454,7 @@ function Header({ cartCount, onCart, onMenu }: { cartCount: number; onCart: () =
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-xl">
       <div className="mx-auto flex h-[72px] max-w-[1440px] items-center justify-between px-5 sm:px-8 lg:px-12">
         <div className="flex items-center gap-8">
-          <button className="outline-focus lg:hidden" onClick={onMenu} aria-label="Open menu" data-testid="button-open-menu">
+          <button className="outline-focus lg:hidden" onClick={onMenu} aria-label={t('openMenu')} data-testid="button-open-menu">
             <Menu size={21} strokeWidth={1.5} />
           </button>
           <Link href="/" className="group flex items-center gap-3 outline-focus" data-testid="link-logo">
@@ -247,23 +462,31 @@ function Header({ cartCount, onCart, onMenu }: { cartCount: number; onCart: () =
             <span className="display text-[15px] font-extrabold tracking-[.18em]">SULM WEAR</span>
           </Link>
           <nav className="hidden items-center gap-7 text-[11px] font-bold uppercase tracking-[.16em] lg:flex">
-            <a href="#shop" className={`outline-focus transition-colors hover:text-accent ${location === '/' ? 'text-foreground' : 'text-muted-foreground'}`} data-testid="link-shop">Shop</a>
-            <a href="#story" className="text-muted-foreground outline-focus transition-colors hover:text-foreground" data-testid="link-story">The SULM standard</a>
-            <Link href="/track-order" className="text-muted-foreground outline-focus transition-colors hover:text-foreground" data-testid="link-track-order">Track</Link><Link href="/returns" className="text-muted-foreground outline-focus transition-colors hover:text-foreground" data-testid="link-returns">Returns</Link><Link href="/loyalty" className="text-muted-foreground outline-focus transition-colors hover:text-foreground" data-testid="link-loyalty">Atelier</Link>
+            <a href="#shop" className={`outline-focus transition-colors hover:text-accent ${location === '/' ? 'text-foreground' : 'text-muted-foreground'}`} data-testid="link-shop">{t('shop')}</a>
+            <a href="#story" className="text-muted-foreground outline-focus transition-colors hover:text-foreground" data-testid="link-story">{t('standard')}</a>
+            <Link href="/track-order" className="text-muted-foreground outline-focus transition-colors hover:text-foreground" data-testid="link-track-order">{t('track')}</Link><Link href="/returns" className="text-muted-foreground outline-focus transition-colors hover:text-foreground" data-testid="link-returns">{t('returns')}</Link><Link href="/loyalty" className="text-muted-foreground outline-focus transition-colors hover:text-foreground" data-testid="link-loyalty">{t('atelier')}</Link>
           </nav>
         </div>
         <div className="flex items-center gap-4">
           <button
+            className="outline-focus min-h-9 border-b border-foreground/40 px-1 text-[10px] font-bold uppercase tracking-[.12em] transition-colors hover:border-accent hover:text-accent"
+            onClick={() => setLocale(locale === 'en' ? 'ar' : 'en')}
+            aria-label={locale === 'en' ? 'Switch to Arabic' : 'التبديل إلى الإنجليزية'}
+            data-testid="button-toggle-language"
+          >
+            {locale === 'en' ? t('switchToArabic') : t('switchToEnglish')}
+          </button>
+          <button
             className="outline-focus text-muted-foreground transition-colors hover:text-foreground"
             onClick={() => setDark(!dark)}
-            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-label={dark ? t('lightMode') : t('darkMode')}
             data-testid="button-toggle-theme"
           >
             {dark ? <Sun size={17} strokeWidth={1.5} /> : <Moon size={17} strokeWidth={1.5} />}
           </button>
           <button className="group flex items-center gap-2 outline-focus" onClick={onCart} data-testid="button-open-cart">
             <ShoppingBag size={19} strokeWidth={1.5} />
-            <span className="hidden text-[11px] font-bold uppercase tracking-[.14em] sm:inline">Bag</span>
+            <span className="hidden text-[11px] font-bold uppercase tracking-[.14em] sm:inline">{t('bag')}</span>
             <span className="grid h-5 min-w-5 place-items-center rounded-full bg-foreground px-1 text-[10px] font-bold text-background" data-testid="text-cart-count">{cartCount}</span>
           </button>
         </div>
@@ -273,25 +496,25 @@ function Header({ cartCount, onCart, onMenu }: { cartCount: number; onCart: () =
 }
 
 function Footer() {
+  const { t } = useLanguage();
   return (
     <footer className="border-t border-border/70 bg-card">
       <div className="mx-auto grid max-w-[1440px] gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[1.3fr_1fr_1fr_1.1fr] lg:px-12">
         <div>
           <div className="mb-5 flex items-center gap-3"><span className="grid h-8 w-8 place-items-center rounded-full border border-foreground/60 text-[11px] font-bold">S.</span><span className="font-bold tracking-[.18em]">SULM WEAR</span></div>
-          <p className="max-w-xs text-sm leading-7 text-muted-foreground">Everyday pieces, reduced to what matters. Designed in Amman. Worn everywhere.</p>
-          <p className="font-arabic mt-4 text-sm text-muted-foreground" dir="rtl">ملابس يومية، مصممة بعناية. من عمّان إلى كل مكان.</p>
+          <p className="max-w-xs text-sm leading-7 text-muted-foreground">{t('heroBody')}</p>
         </div>
         <div>
-          <p className="mb-5 text-[10px] font-bold uppercase tracking-[.2em] text-muted-foreground">Navigate</p>
-          <div className="grid gap-3 text-sm"><a href="#shop" className="hover:text-accent" data-testid="footer-link-shop">Shop all</a><a href="#story" className="hover:text-accent" data-testid="footer-link-story">Our standard</a><Link href="/track-order" className="hover:text-accent" data-testid="footer-link-track">Track your order</Link></div>
+          <p className="mb-5 text-[10px] font-bold uppercase tracking-[.2em] text-muted-foreground">{t('navigate')}</p>
+          <div className="grid gap-3 text-sm"><a href="#shop" className="hover:text-accent" data-testid="footer-link-shop">{t('shopAll')}</a><a href="#story" className="hover:text-accent" data-testid="footer-link-story">{t('ourStandard')}</a><Link href="/track-order" className="hover:text-accent" data-testid="footer-link-track">{t('trackOrder')}</Link></div>
         </div>
         <div>
-          <p className="mb-5 text-[10px] font-bold uppercase tracking-[.2em] text-muted-foreground">Connect</p>
-          <div className="grid gap-3 text-sm"><a href={`tel:${PHONE.replace(/\s/g, '')}`} className="flex items-center gap-2 hover:text-accent" data-testid="link-footer-phone"><Phone size={14} />{PHONE}</a><a href={INSTAGRAM} target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-accent" data-testid="link-footer-instagram"><Instagram size={14} />@sulm_wear</a><a href={`https://wa.me/${PHONE.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="hover:text-accent" data-testid="link-footer-whatsapp">WhatsApp us</a></div>
+          <p className="mb-5 text-[10px] font-bold uppercase tracking-[.2em] text-muted-foreground">{t('connect')}</p>
+          <div className="grid gap-3 text-sm"><a href={`tel:${PHONE.replace(/\s/g, '')}`} className="flex items-center gap-2 hover:text-accent" data-testid="link-footer-phone"><Phone size={14} />{PHONE}</a><a href={INSTAGRAM} target="_blank" rel="noreferrer" className="flex items-center gap-2 hover:text-accent" data-testid="link-footer-instagram"><Instagram size={14} />@sulm_wear</a><a href={`https://wa.me/${PHONE.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="hover:text-accent" data-testid="link-footer-whatsapp">{t('whatsapp')}</a></div>
         </div>
         <div className="border-l border-border pl-6 lg:border-l">
-          <p className="mb-4 text-[10px] font-bold uppercase tracking-[.2em] text-muted-foreground">A note from Amman</p>
-          <p className="display text-2xl font-semibold leading-tight">Good clothes should disappear into your day.</p>
+          <p className="mb-4 text-[10px] font-bold uppercase tracking-[.2em] text-muted-foreground">{t('noteFromAmman')}</p>
+          <p className="display text-2xl font-semibold leading-tight">{t('footerLine')}</p>
           <p className="mt-5 text-[11px] uppercase tracking-[.16em] text-muted-foreground">© {new Date().getFullYear()} SULM WEAR</p>
         </div>
       </div>
@@ -300,24 +523,26 @@ function Footer() {
 }
 
 function ProductCard({ product, onAdd }: { product: Product; onAdd: (product: Product) => void }) {
+  const { locale, t } = useLanguage();
+  const displayName = locale === 'ar' ? product.nameAr : product.name;
   return (
     <article className="product-card group slide-in" data-testid={`card-product-${product.id}`}>
       <div className="relative">
         <Link href={`/product/${product.slug}`} className="block outline-focus" data-testid={`link-product-${product.id}`}>
           <ProductVisual product={product} />
         </Link>
-        {product.featured && <span className="absolute right-3 top-3 bg-background/85 px-2 py-1 text-[9px] font-bold uppercase tracking-[.17em] backdrop-blur-sm">Featured</span>}
+        {product.featured && <span className="absolute right-3 top-3 bg-background/85 px-2 py-1 text-[9px] font-bold uppercase tracking-[.17em] backdrop-blur-sm">{t('featured')}</span>}
         <button
           className="absolute bottom-3 right-3 flex translate-y-2 items-center gap-2 bg-foreground px-3 py-2 text-[10px] font-bold uppercase tracking-[.14em] text-background opacity-0 transition-all group-hover:translate-y-0 group-hover:opacity-100 focus:translate-y-0 focus:opacity-100"
           onClick={() => onAdd(product)}
           disabled={product.stock < 1}
           data-testid={`button-add-product-${product.id}`}
         >
-          <Plus size={13} /> Add to bag
+          <Plus size={13} /> {t('addToBag')}
         </button>
       </div>
       <div className="flex items-start justify-between gap-4 py-4">
-        <div><Link href={`/product/${product.slug}`} className="outline-focus text-sm font-semibold hover:text-accent" data-testid={`link-product-name-${product.id}`}>{product.name}</Link><p className="font-arabic mt-1 text-[11px] text-muted-foreground" dir="rtl">{product.nameAr}</p></div>
+        <div><Link href={`/product/${product.slug}`} className="outline-focus text-sm font-semibold hover:text-accent" data-testid={`link-product-name-${product.id}`}>{displayName}</Link>{locale === 'en' && <p className="font-arabic mt-1 text-[11px] text-muted-foreground" dir="rtl">{product.nameAr}</p>}</div>
         <div className="text-right"><p className="font-mono text-xs" data-testid={`text-price-${product.id}`}>{money(product.price)}</p>{product.compareAtPrice && <p className="font-mono text-[10px] text-muted-foreground line-through">{money(product.compareAtPrice)}</p>}</div>
       </div>
     </article>
