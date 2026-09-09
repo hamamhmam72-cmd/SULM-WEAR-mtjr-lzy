@@ -3,6 +3,14 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { clerkMiddleware } from "@clerk/express";
+import { publishableKeyFromHost } from "@clerk/shared/keys";
+import {
+  CLERK_PROXY_PATH,
+  clerkProxyMiddleware,
+  getClerkProxyHost,
+} from "./middlewares/clerkProxyMiddleware";
+import { recordRouteMetric } from "./lib/systemDiagnostics";
 
 const app: Express = express();
 
@@ -25,9 +33,29 @@ app.use(
     },
   }),
 );
-app.use(cors());
-app.use(express.json());
+app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+app.use(cors({ credentials: true, origin: true }));
+app.use(express.json({ limit: "256kb" }));
 app.use(express.urlencoded({ extended: true }));
+app.use(
+  clerkMiddleware((req) => ({
+    publishableKey: publishableKeyFromHost(
+      getClerkProxyHost(req) ?? "",
+      process.env.CLERK_PUBLISHABLE_KEY,
+    ),
+  })),
+);
+app.use((req, res, next) => {
+  const startedAt = Date.now();
+  res.on("finish", () => {
+    const path = req.path
+      .replace(/\/\d+(?=\/|$)/g, "/:id")
+      .replace(/\/SULM-[A-Za-z0-9-]+(?=\/|$)/g, "/:orderNumber")
+      .replace(/\/[0-9a-f-]{32,}(?=\/|$)/gi, "/:token");
+    recordRouteMetric(`${req.method} ${path}`, Date.now() - startedAt, res.statusCode >= 400);
+  });
+  next();
+});
 
 app.use("/api", router);
 

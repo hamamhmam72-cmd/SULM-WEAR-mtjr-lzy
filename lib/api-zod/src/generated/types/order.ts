@@ -17,6 +17,10 @@ export interface Order {
   address: string;
   paymentMethod: string;
   status: OrderStatus;
+  /** @nullable */
+  courier: string | null;
+  /** @nullable */
+  zone: string | null;
   total: number;
   subtotal: number;
   bundleDiscount: number;
@@ -24,4 +28,13 @@ export interface Order {
   loyaltyPointsEarned: number;
   items: OrderItem[];
   createdAt: string;
+  updatedAt: string;
+  /** @nullable */
+  inventoryDeductedAt: string | null;
+  /** @nullable */
+  packedAt: string | null;
+  /** @nullable */
+  shippedAt: string | null;
+  /** @nullable */
+  deliveredAt: string | null;
 }

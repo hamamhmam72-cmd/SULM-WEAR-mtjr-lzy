@@ -1,4 +1,4 @@
-import { type CSSProperties, type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type CSSProperties, type FormEvent, useEffect, useMemo, useState, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   ArrowDownRight,
@@ -47,6 +47,13 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Route, Switch, Link, Router as WouterRouter, useLocation, useParams } from 'wouter';
+import { ClerkProvider, SignIn, SignUp, Show, useClerk } from '@clerk/react';
+import { publishableKeyFromHost } from '@clerk/react/internal';
+import { shadcn } from '@clerk/themes';
+import { AdminLayout } from './admin/AdminLayout';
+import { AdminOrders } from './admin/AdminOrders';
+import { AdminCatalog } from './admin/AdminCatalog';
+import { AdminSystemHealth } from './admin/AdminSystemHealth';
 import { Loyalty } from './Loyalty';
 import { Returns } from './Returns';
 import '@/index.css';
@@ -54,6 +61,137 @@ import '@/index.css';
 const queryClient = new QueryClient();
 const PHONE = '+962 7 8667 7153';
 const INSTAGRAM = 'https://www.instagram.com/sulm_wear?stkn=MTRlend5dHM3emxkeQ==';
+
+const clerkPubKey = publishableKeyFromHost(
+  window.location.hostname,
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+);
+const basePath = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
+const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+
+function stripBase(path: string): string {
+  return basePath && path.startsWith(basePath)
+    ? path.slice(basePath.length) || "/"
+    : path;
+}
+
+const clerkAppearance = {
+  theme: shadcn,
+  cssLayerName: "clerk",
+  options: {
+    logoPlacement: "inside" as const,
+    logoLinkUrl: basePath || "/",
+    logoImageUrl: `${window.location.origin}${basePath}/images/sulm-logo.jpg`,
+  },
+  variables: {
+    colorPrimary: "hsl(220 15% 12%)",
+    colorForeground: "hsl(220 15% 12%)",
+    colorMutedForeground: "hsl(220 8% 39%)",
+    colorDanger: "hsl(0 54% 43%)",
+    colorBackground: "hsl(42 30% 97%)",
+    colorInput: "hsl(42 28% 94%)",
+    colorInputForeground: "hsl(220 15% 12%)",
+    colorNeutral: "hsl(38 10% 78%)",
+    fontFamily: "var(--app-font-sans)",
+    borderRadius: "0.15rem",
+  },
+  elements: {
+    rootBox: "w-full flex justify-center",
+    cardBox: "bg-card border-border rounded-sm w-[440px] max-w-full overflow-hidden",
+    card: "!shadow-none !border-0 !bg-transparent !rounded-none",
+    footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
+    headerTitle: "text-foreground font-bold font-sans",
+    headerSubtitle: "text-muted-foreground",
+    socialButtonsBlockButtonText: "text-foreground",
+    formFieldLabel: "text-foreground font-bold uppercase tracking-widest text-[10px]",
+    footerActionLink: "text-accent hover:text-foreground",
+    footerActionText: "text-muted-foreground",
+    dividerText: "text-muted-foreground",
+    identityPreviewEditButton: "text-accent",
+    formFieldSuccessText: "text-accent",
+    alertText: "text-destructive",
+    logoBox: "",
+    logoImage: "w-12 h-12 object-cover mx-auto mix-blend-multiply opacity-80",
+    socialButtonsBlockButton: "border-border hover:bg-muted",
+    formButtonPrimary: "bg-foreground text-background hover:bg-accent rounded-sm",
+    formFieldInput: "bg-background border-border text-foreground rounded-sm",
+    footerAction: "",
+    dividerLine: "bg-border",
+    alert: "bg-destructive/10 text-destructive border-destructive/20",
+    otpCodeFieldInput: "bg-background border-border text-foreground rounded-sm",
+    formFieldRow: "",
+    main: "",
+  },
+};
+
+function ClerkQueryClientCacheInvalidator() {
+  const { addListener } = useClerk();
+  const prevUserIdRef = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    const unsubscribe = addListener(({ user }) => {
+      const userId = user?.id ?? null;
+      if (
+        prevUserIdRef.current !== undefined &&
+        prevUserIdRef.current !== userId
+      ) {
+        queryClient.clear();
+      }
+      prevUserIdRef.current = userId;
+    });
+    return unsubscribe;
+  }, [addListener]);
+
+  return null;
+}
+
+function SignInPage() {
+  return (
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 relative z-50">
+      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+    </div>
+  );
+}
+
+function SignUpPage() {
+  return (
+    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 relative z-50">
+      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
+    </div>
+  );
+}
+
+function Navigate({ to }: { to: string }) {
+  const [, setLocation] = useLocation();
+  useEffect(() => { setLocation(to, { replace: true }); }, [to, setLocation]);
+  return null;
+}
+
+function AdminGuard({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <Show when="signed-in">
+        <AdminLayout>{children}</AdminLayout>
+      </Show>
+      <Show when="signed-out">
+        <Navigate to="/sign-in" />
+      </Show>
+    </>
+  );
+}
+
+function HomeRedirect({ onAdd }: { onAdd: (product: Product) => void }) {
+  return (
+    <>
+      <Show when="signed-in">
+        <Navigate to="/admin" />
+      </Show>
+      <Show when="signed-out">
+        <Home onAdd={onAdd} />
+      </Show>
+    </>
+  );
+}
 
 type CartItem = { product: Product; size: string; quantity: number };
 
@@ -214,10 +352,11 @@ function Home({ onAdd }: { onAdd: (product: Product) => void }) {
           </div>
           <div className="relative hidden min-h-[490px] items-end justify-end lg:flex fade-up fade-up-delay-2">
             <div className="absolute right-[13%] top-[5%] h-[330px] w-[72%] border border-foreground/20" />
-            <div className="absolute bottom-0 right-0 h-[435px] w-[76%] image-wash" style={{ '--wash': '#84949b' } as CSSProperties}>
+            <div className="absolute bottom-0 right-0 h-[435px] w-[76%] image-wash overflow-hidden" style={{ '--wash': '#84949b' } as CSSProperties}>
+              <img src="/images/sulm-logo.jpg" alt="" className="absolute inset-0 h-full w-full object-cover mix-blend-overlay opacity-60 dark:opacity-40" />
               <div className="hero-grid absolute inset-0 opacity-40" />
               <div className="absolute inset-x-[14%] top-[9%] border-t border-white/40" />
-              <div className="absolute bottom-[9%] left-[14%] text-[10px] font-bold uppercase tracking-[.24em] text-white/80">Move with intent</div>
+              <div className="absolute bottom-[9%] left-[14%] text-[10px] font-bold uppercase tracking-[.24em] text-white/90">Move with intent</div>
               <div className="absolute bottom-[9%] right-[11%] h-16 w-px bg-white/50" />
             </div>
             <p className="absolute bottom-3 left-0 max-w-[160px] text-[10px] font-bold uppercase leading-5 tracking-[.18em] text-muted-foreground">Object / 001<br />The daily uniform</p>
@@ -668,8 +807,63 @@ function RouterContent({ cart, setCart, cartOpen, setCartOpen }: { cart: CartIte
     setCart(existing ? cart.map((item) => item === existing ? { ...item, quantity: item.quantity + 1 } : item) : [...cart, { product, size, quantity: 1 }]);
     setCartOpen(true);
   };
-  const [location] = useLocation();
-  return <ErrorBoundary resetKey={location}><div className="noise sulm-shell min-h-[100dvh]"><Header cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)} onCart={() => setCartOpen(true)} onMenu={() => setMenuOpen(!menuOpen)} />{menuOpen && <div className="fixed inset-x-0 top-[72px] z-30 border-b border-border bg-background p-6 lg:hidden"><div className="grid gap-5 text-[11px] font-bold uppercase tracking-[.17em]"><a href="#shop" onClick={() => setMenuOpen(false)} data-testid="mobile-link-shop">Shop</a><a href="#story" onClick={() => setMenuOpen(false)} data-testid="mobile-link-story">The SULM standard</a><Link href="/track-order" onClick={() => setMenuOpen(false)} data-testid="mobile-link-track">Track</Link><Link href="/returns" onClick={() => setMenuOpen(false)} data-testid="mobile-link-returns">Returns</Link><Link href="/loyalty" onClick={() => setMenuOpen(false)} data-testid="mobile-link-loyalty">Atelier</Link></div></div>}<Switch><Route path="/" component={() => <Home onAdd={add} />} /><Route path="/product/:slug" component={() => <ProductPage onAdd={add} />} /><Route path="/track-order" component={TrackOrder} /><Route path="/loyalty" component={Loyalty} /><Route path="/returns" component={Returns} /><Route path="/checkout" component={() => success ? <Success order={success} /> : <Checkout items={cart} onSuccess={(order) => { setSuccess(order); setCart([]); }} />} /><Route component={NotFoundPage} /></Switch>{location !== '/checkout' && <Footer />}<CartDrawer items={cart} open={cartOpen} onClose={() => setCartOpen(false)} onChange={setCart} /></div></ErrorBoundary>;
+  const [location, setLocation] = useLocation();
+  const isAdminOrAuth = location.startsWith('/admin') || location.startsWith('/sign-in') || location.startsWith('/sign-up');
+
+  return (
+    <ClerkProvider
+      publishableKey={clerkPubKey}
+      proxyUrl={clerkProxyUrl}
+      appearance={clerkAppearance}
+      signInUrl={`${basePath}/sign-in`}
+      signUpUrl={`${basePath}/sign-up`}
+      localization={{
+        signIn: { start: { title: "Admin Access", subtitle: "Restricted to authorized personnel" } },
+      }}
+      routerPush={(to) => setLocation(stripBase(to))}
+      routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+    >
+      <ClerkQueryClientCacheInvalidator />
+      <ErrorBoundary resetKey={location}>
+        <div className="noise sulm-shell min-h-[100dvh]">
+          {!isAdminOrAuth && <Header cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)} onCart={() => setCartOpen(true)} onMenu={() => setMenuOpen(!menuOpen)} />}
+          
+          {menuOpen && !isAdminOrAuth && (
+            <div className="fixed inset-x-0 top-[72px] z-30 border-b border-border bg-background p-6 lg:hidden">
+              <div className="grid gap-5 text-[11px] font-bold uppercase tracking-[.17em]">
+                <a href="#shop" onClick={() => setMenuOpen(false)} data-testid="mobile-link-shop">Shop</a>
+                <a href="#story" onClick={() => setMenuOpen(false)} data-testid="mobile-link-story">The SULM standard</a>
+                <Link href="/track-order" onClick={() => setMenuOpen(false)} data-testid="mobile-link-track">Track</Link>
+                <Link href="/returns" onClick={() => setMenuOpen(false)} data-testid="mobile-link-returns">Returns</Link>
+                <Link href="/loyalty" onClick={() => setMenuOpen(false)} data-testid="mobile-link-loyalty">Atelier</Link>
+              </div>
+            </div>
+          )}
+          
+          <Switch>
+            <Route path="/" component={() => <HomeRedirect onAdd={add} />} />
+            <Route path="/sign-in/*?" component={SignInPage} />
+            <Route path="/sign-up/*?" component={SignUpPage} />
+            
+            <Route path="/admin" component={() => <AdminGuard><Navigate to="/admin/orders" /></AdminGuard>} />
+            <Route path="/admin/orders" component={() => <AdminGuard><AdminOrders /></AdminGuard>} />
+            <Route path="/admin/catalog" component={() => <AdminGuard><AdminCatalog /></AdminGuard>} />
+            <Route path="/admin/health" component={() => <AdminGuard><AdminSystemHealth /></AdminGuard>} />
+            
+            <Route path="/product/:slug" component={() => <ProductPage onAdd={add} />} />
+            <Route path="/track-order" component={TrackOrder} />
+            <Route path="/loyalty" component={Loyalty} />
+            <Route path="/returns" component={Returns} />
+            <Route path="/checkout" component={() => success ? <Success order={success} /> : <Checkout items={cart} onSuccess={(order) => { setSuccess(order); setCart([]); }} />} />
+            <Route component={NotFoundPage} />
+          </Switch>
+          
+          {!isAdminOrAuth && location !== '/checkout' && <Footer />}
+          {!isAdminOrAuth && <CartDrawer items={cart} open={cartOpen} onClose={() => setCartOpen(false)} onChange={setCart} />}
+        </div>
+      </ErrorBoundary>
+    </ClerkProvider>
+  );
 }
 
 

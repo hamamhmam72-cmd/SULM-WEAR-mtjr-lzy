@@ -20,3 +20,4 @@
 export * from "./products";
 export * from "./orders";
 export * from "./retention";
+export * from "./catalog";

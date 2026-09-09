@@ -16,6 +16,8 @@ tags:
     description: Customer order operations
   - name: retention
     description: Loyalty, returns, bundles, and consented reminder operations
+  - name: admin
+    description: Restricted catalog and fulfillment administration
 paths:
   /healthz:
     get:
@@ -405,6 +407,175 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UnsubscribeResult"
+  /admin/session:
+    get:
+      operationId: getAdminSession
+      tags: [admin]
+      summary: Verify catalog administrator access
+      responses:
+        "200":
+          description: Authorized administrator
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSession"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Administrator access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/orders:
+    get:
+      operationId: getAdminOrders
+      tags: [admin]
+      summary: List and filter fulfillment orders
+      parameters:
+        - { name: status, in: query, required: false, schema: { type: string } }
+        - { name: courier, in: query, required: false, schema: { type: string, maxLength: 80 } }
+        - { name: zone, in: query, required: false, schema: { type: string, maxLength: 80 } }
+        - { name: paymentMethod, in: query, required: false, schema: { type: string, enum: [cod, prepaid] } }
+        - { name: search, in: query, required: false, schema: { type: string, maxLength: 120 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
+      responses:
+        "200":
+          description: Fulfillment orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminOrder"
+  /admin/orders/batch-status:
+    patch:
+      operationId: batchUpdateOrderStatus
+      tags: [admin]
+      summary: Update selected orders and build a pick list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BatchOrderStatusInput"
+      responses:
+        "200":
+          description: Updated orders and consolidated pick list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BatchOrderStatusResult"
+        "400":
+          description: Invalid transition or insufficient inventory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /admin/products:
+    get:
+      operationId: getAdminProducts
+      tags: [admin]
+      summary: List products with variants
+      responses:
+        "200":
+          description: Catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminProduct"
+    post:
+      operationId: createAdminProduct
+      tags: [admin]
+      summary: Create a product and variant matrix
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminProductInput"
+      responses:
+        "201":
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProduct"
+  /admin/products/{id}:
+    patch:
+      operationId: updateAdminProduct
+      tags: [admin]
+      summary: Update a product and replace its variant matrix
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminProductUpdateInput"
+      responses:
+        "200":
+          description: Product updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminProduct"
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteAdminProduct
+      tags: [admin]
+      summary: Delete a product and associated variant records
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        "200":
+          description: Product deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResult"
+  /admin/uploads/request-url:
+    post:
+      operationId: requestAdminUploadUrl
+      tags: [admin]
+      summary: Request a protected product-media upload URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUploadInput"
+      responses:
+        "200":
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUploadResult"
+  /admin/system/health:
+    get:
+      operationId: getAdminSystemHealth
+      tags: [admin]
+      summary: Run integrity and service diagnostics
+      responses:
+        "200":
+          description: System diagnostics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSystemHealth"
 components:
   schemas:
     HealthStatus:
@@ -571,7 +742,11 @@ components:
           type: string
         status:
           type: string
-          enum: [new, processing, packed, ready_to_ship, shipped]
+          enum: [new, confirmed, processing, packed, ready_to_ship, shipped, delivered, canceled, returned]
+        courier:
+          type: ["string", "null"]
+        zone:
+          type: ["string", "null"]
         total:
           type: number
         subtotal:
@@ -588,6 +763,16 @@ components:
             $ref: "#/components/schemas/OrderItem"
         createdAt:
           type: string
+        updatedAt:
+          type: string
+        inventoryDeductedAt:
+          type: ["string", "null"]
+        packedAt:
+          type: ["string", "null"]
+        shippedAt:
+          type: ["string", "null"]
+        deliveredAt:
+          type: ["string", "null"]
       required:
         - id
         - orderNumber
@@ -597,6 +782,8 @@ components:
         - address
         - paymentMethod
         - status
+        - courier
+        - zone
         - total
         - subtotal
         - bundleDiscount
@@ -604,6 +791,11 @@ components:
         - loyaltyPointsEarned
         - items
         - createdAt
+        - updatedAt
+        - inventoryDeductedAt
+        - packedAt
+        - shippedAt
+        - deliveredAt
     LoyaltyLookupInput:
       type: object
       properties:
@@ -895,6 +1087,188 @@ components:
           type: boolean
       required:
         - unsubscribed
+    AdminSession:
+      type: object
+      properties:
+        userId: { type: string }
+        email: { type: string }
+        role: { type: string, enum: [catalog_admin] }
+      required: [userId, email, role]
+    AdminVariantInput:
+      type: object
+      properties:
+        id: { type: ["integer", "null"] }
+        sku: { type: string, minLength: 2, maxLength: 80 }
+        colorName: { type: string, minLength: 1, maxLength: 80 }
+        colorHex: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+        size: { type: string, minLength: 1, maxLength: 20 }
+        price: { type: ["number", "null"], minimum: 0, maximum: 100000 }
+        compareAtPrice: { type: ["number", "null"], minimum: 0, maximum: 100000 }
+        stock: { type: integer, minimum: 0, maximum: 100000 }
+        chestMm: { type: ["integer", "null"], minimum: 0, maximum: 5000 }
+        lengthMm: { type: ["integer", "null"], minimum: 0, maximum: 5000 }
+        shouldersMm: { type: ["integer", "null"], minimum: 0, maximum: 5000 }
+        sleevesMm: { type: ["integer", "null"], minimum: 0, maximum: 5000 }
+        media:
+          type: array
+          maxItems: 12
+          items: { type: string, maxLength: 1000 }
+        active: { type: boolean }
+      required: [id, sku, colorName, colorHex, size, price, compareAtPrice, stock, chestMm, lengthMm, shouldersMm, sleevesMm, media, active]
+    AdminVariant:
+      allOf:
+        - $ref: "#/components/schemas/AdminVariantInput"
+        - type: object
+          properties:
+            id: { type: integer }
+            productId: { type: integer }
+            initialStock: { type: integer }
+            createdAt: { type: string }
+            updatedAt: { type: string }
+          required: [id, productId, initialStock, createdAt, updatedAt]
+    AdminProductInput:
+      type: object
+      properties:
+        slug: { type: string, pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$", maxLength: 120 }
+        name: { type: string, minLength: 2, maxLength: 160 }
+        nameAr: { type: string, minLength: 2, maxLength: 160 }
+        category: { type: string, minLength: 1, maxLength: 80 }
+        price: { type: number, minimum: 0, maximum: 100000 }
+        compareAtPrice: { type: ["number", "null"], minimum: 0, maximum: 100000 }
+        description: { type: string, minLength: 5, maxLength: 3000 }
+        descriptionAr: { type: string, minLength: 5, maxLength: 3000 }
+        image: { type: string, minLength: 1, maxLength: 1000 }
+        accent: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+        featured: { type: boolean }
+        story: { type: string, minLength: 5, maxLength: 5000 }
+        status: { type: string, enum: [draft, active, archived] }
+        variants:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/AdminVariantInput"
+      required: [slug, name, nameAr, category, price, compareAtPrice, description, descriptionAr, image, accent, featured, story, status, variants]
+    AdminProductUpdateInput:
+      allOf:
+        - $ref: "#/components/schemas/AdminProductInput"
+    AdminProduct:
+      type: object
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        name: { type: string }
+        nameAr: { type: string }
+        category: { type: string }
+        price: { type: number }
+        compareAtPrice: { type: ["number", "null"] }
+        description: { type: string }
+        descriptionAr: { type: string }
+        image: { type: string }
+        accent: { type: string }
+        featured: { type: boolean }
+        story: { type: string }
+        status: { type: string, enum: [draft, active, archived] }
+        stock: { type: integer }
+        sizes:
+          type: array
+          items: { type: string }
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminVariant"
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, slug, name, nameAr, category, price, compareAtPrice, description, descriptionAr, image, accent, featured, story, status, stock, sizes, variants, createdAt, updatedAt]
+    AdminOrder:
+      allOf:
+        - $ref: "#/components/schemas/Order"
+        - type: object
+          properties:
+            selected: { type: boolean }
+          required: [selected]
+    BatchOrderStatusInput:
+      type: object
+      properties:
+        orderIds:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items: { type: integer, minimum: 1 }
+        status:
+          type: string
+          enum: [confirmed, processing, packed, ready_to_ship, shipped, delivered, canceled, returned]
+        courier: { type: ["string", "null"], maxLength: 80 }
+        zone: { type: ["string", "null"], maxLength: 80 }
+      required: [orderIds, status, courier, zone]
+    PickListItem:
+      type: object
+      properties:
+        productName: { type: string }
+        productSlug: { type: string }
+        size: { type: string }
+        quantity: { type: integer }
+      required: [productName, productSlug, size, quantity]
+    BatchOrderStatusResult:
+      type: object
+      properties:
+        updatedOrders:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminOrder"
+        pickList:
+          type: array
+          items:
+            $ref: "#/components/schemas/PickListItem"
+      required: [updatedOrders, pickList]
+    DeleteResult:
+      type: object
+      properties:
+        deleted: { type: boolean }
+      required: [deleted]
+    AdminUploadInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 180 }
+        size: { type: integer, minimum: 1, maximum: 15728640 }
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+      required: [name, size, contentType]
+    AdminUploadResult:
+      type: object
+      properties:
+        uploadURL: { type: string }
+        objectPath: { type: string }
+      required: [uploadURL, objectPath]
+    HealthCheckItem:
+      type: object
+      properties:
+        key: { type: string }
+        status: { type: string, enum: [healthy, warning, critical] }
+        message: { type: string }
+        checkedAt: { type: string }
+      required: [key, status, message, checkedAt]
+    RouteMetric:
+      type: object
+      properties:
+        route: { type: string }
+        requests: { type: integer }
+        errors: { type: integer }
+        averageMs: { type: number }
+      required: [route, requests, errors, averageMs]
+    AdminSystemHealth:
+      type: object
+      properties:
+        status: { type: string, enum: [healthy, warning, critical] }
+        checks:
+          type: array
+          items:
+            $ref: "#/components/schemas/HealthCheckItem"
+        routeMetrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/RouteMetric"
+      required: [status, checks, routeMetrics]
     ErrorResponse:
       type: object
       properties:

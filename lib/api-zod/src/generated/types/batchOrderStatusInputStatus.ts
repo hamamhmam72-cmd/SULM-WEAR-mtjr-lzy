@@ -6,11 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type OrderStatus = typeof OrderStatus[keyof typeof OrderStatus];
+export type BatchOrderStatusInputStatus = typeof BatchOrderStatusInputStatus[keyof typeof BatchOrderStatusInputStatus];
 
 
-export const OrderStatus = {
-  new: 'new',
+export const BatchOrderStatusInputStatus = {
   confirmed: 'confirmed',
   processing: 'processing',
   packed: 'packed',

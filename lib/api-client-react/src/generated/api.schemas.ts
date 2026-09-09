@@ -83,10 +83,14 @@ export type OrderStatus = typeof OrderStatus[keyof typeof OrderStatus];
 
 export const OrderStatus = {
   new: 'new',
+  confirmed: 'confirmed',
   processing: 'processing',
   packed: 'packed',
   ready_to_ship: 'ready_to_ship',
   shipped: 'shipped',
+  delivered: 'delivered',
+  canceled: 'canceled',
+  returned: 'returned',
 } as const;
 
 export interface Order {
@@ -98,6 +102,10 @@ export interface Order {
   address: string;
   paymentMethod: string;
   status: OrderStatus;
+  /** @nullable */
+  courier: string | null;
+  /** @nullable */
+  zone: string | null;
   total: number;
   subtotal: number;
   bundleDiscount: number;
@@ -105,6 +113,15 @@ export interface Order {
   loyaltyPointsEarned: number;
   items: OrderItem[];
   createdAt: string;
+  updatedAt: string;
+  /** @nullable */
+  inventoryDeductedAt: string | null;
+  /** @nullable */
+  packedAt: string | null;
+  /** @nullable */
+  shippedAt: string | null;
+  /** @nullable */
+  deliveredAt: string | null;
 }
 
 export interface LoyaltyLookupInput {
@@ -364,6 +381,322 @@ export interface UnsubscribeResult {
   unsubscribed: boolean;
 }
 
+export type AdminSessionRole = typeof AdminSessionRole[keyof typeof AdminSessionRole];
+
+
+export const AdminSessionRole = {
+  catalog_admin: 'catalog_admin',
+} as const;
+
+export interface AdminSession {
+  userId: string;
+  email: string;
+  role: AdminSessionRole;
+}
+
+export interface AdminVariantInput {
+  /** @nullable */
+  id: number | null;
+  /**
+     * @minLength 2
+     * @maxLength 80
+     */
+  sku: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  colorName: string;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  colorHex: string;
+  /**
+     * @minLength 1
+     * @maxLength 20
+     */
+  size: string;
+  /**
+     * @minimum 0
+     * @maximum 100000
+     * @nullable
+     */
+  price: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100000
+     * @nullable
+     */
+  compareAtPrice: number | null;
+  /**
+     * @minimum 0
+     * @maximum 100000
+     */
+  stock: number;
+  /**
+     * @minimum 0
+     * @maximum 5000
+     * @nullable
+     */
+  chestMm: number | null;
+  /**
+     * @minimum 0
+     * @maximum 5000
+     * @nullable
+     */
+  lengthMm: number | null;
+  /**
+     * @minimum 0
+     * @maximum 5000
+     * @nullable
+     */
+  shouldersMm: number | null;
+  /**
+     * @minimum 0
+     * @maximum 5000
+     * @nullable
+     */
+  sleevesMm: number | null;
+  /**
+     * @maxItems 12
+     * @items.maxLength 1000
+     */
+  media: string[];
+  active: boolean;
+}
+
+export type AdminVariant = AdminVariantInput & {
+  id: number;
+  productId: number;
+  initialStock: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminProductInputStatus = typeof AdminProductInputStatus[keyof typeof AdminProductInputStatus];
+
+
+export const AdminProductInputStatus = {
+  draft: 'draft',
+  active: 'active',
+  archived: 'archived',
+} as const;
+
+export interface AdminProductInput {
+  /**
+     * @maxLength 120
+     * @pattern ^[a-z0-9]+(?:-[a-z0-9]+)*$
+     */
+  slug: string;
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  name: string;
+  /**
+     * @minLength 2
+     * @maxLength 160
+     */
+  nameAr: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  category: string;
+  /**
+     * @minimum 0
+     * @maximum 100000
+     */
+  price: number;
+  /**
+     * @minimum 0
+     * @maximum 100000
+     * @nullable
+     */
+  compareAtPrice: number | null;
+  /**
+     * @minLength 5
+     * @maxLength 3000
+     */
+  description: string;
+  /**
+     * @minLength 5
+     * @maxLength 3000
+     */
+  descriptionAr: string;
+  /**
+     * @minLength 1
+     * @maxLength 1000
+     */
+  image: string;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  accent: string;
+  featured: boolean;
+  /**
+     * @minLength 5
+     * @maxLength 5000
+     */
+  story: string;
+  status: AdminProductInputStatus;
+  /**
+     * @minItems 1
+     * @maxItems 200
+     */
+  variants: AdminVariantInput[];
+}
+
+export type AdminProductUpdateInput = AdminProductInput;
+
+export type AdminProductStatus = typeof AdminProductStatus[keyof typeof AdminProductStatus];
+
+
+export const AdminProductStatus = {
+  draft: 'draft',
+  active: 'active',
+  archived: 'archived',
+} as const;
+
+export interface AdminProduct {
+  id: number;
+  slug: string;
+  name: string;
+  nameAr: string;
+  category: string;
+  price: number;
+  /** @nullable */
+  compareAtPrice: number | null;
+  description: string;
+  descriptionAr: string;
+  image: string;
+  accent: string;
+  featured: boolean;
+  story: string;
+  status: AdminProductStatus;
+  stock: number;
+  sizes: string[];
+  variants: AdminVariant[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AdminOrder = Order & {
+  selected: boolean;
+};
+
+export type BatchOrderStatusInputStatus = typeof BatchOrderStatusInputStatus[keyof typeof BatchOrderStatusInputStatus];
+
+
+export const BatchOrderStatusInputStatus = {
+  confirmed: 'confirmed',
+  processing: 'processing',
+  packed: 'packed',
+  ready_to_ship: 'ready_to_ship',
+  shipped: 'shipped',
+  delivered: 'delivered',
+  canceled: 'canceled',
+  returned: 'returned',
+} as const;
+
+export interface BatchOrderStatusInput {
+  /**
+     * @minItems 1
+     * @maxItems 100
+     * @items.minimum 1
+     */
+  orderIds: number[];
+  status: BatchOrderStatusInputStatus;
+  /**
+     * @maxLength 80
+     * @nullable
+     */
+  courier: string | null;
+  /**
+     * @maxLength 80
+     * @nullable
+     */
+  zone: string | null;
+}
+
+export interface PickListItem {
+  productName: string;
+  productSlug: string;
+  size: string;
+  quantity: number;
+}
+
+export interface BatchOrderStatusResult {
+  updatedOrders: AdminOrder[];
+  pickList: PickListItem[];
+}
+
+export interface DeleteResult {
+  deleted: boolean;
+}
+
+export type AdminUploadInputContentType = typeof AdminUploadInputContentType[keyof typeof AdminUploadInputContentType];
+
+
+export const AdminUploadInputContentType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+  'image/webp': 'image/webp',
+} as const;
+
+export interface AdminUploadInput {
+  /**
+     * @minLength 1
+     * @maxLength 180
+     */
+  name: string;
+  /**
+     * @minimum 1
+     * @maximum 15728640
+     */
+  size: number;
+  contentType: AdminUploadInputContentType;
+}
+
+export interface AdminUploadResult {
+  uploadURL: string;
+  objectPath: string;
+}
+
+export type HealthCheckItemStatus = typeof HealthCheckItemStatus[keyof typeof HealthCheckItemStatus];
+
+
+export const HealthCheckItemStatus = {
+  healthy: 'healthy',
+  warning: 'warning',
+  critical: 'critical',
+} as const;
+
+export interface HealthCheckItem {
+  key: string;
+  status: HealthCheckItemStatus;
+  message: string;
+  checkedAt: string;
+}
+
+export interface RouteMetric {
+  route: string;
+  requests: number;
+  errors: number;
+  averageMs: number;
+}
+
+export type AdminSystemHealthStatus = typeof AdminSystemHealthStatus[keyof typeof AdminSystemHealthStatus];
+
+
+export const AdminSystemHealthStatus = {
+  healthy: 'healthy',
+  warning: 'warning',
+  critical: 'critical',
+} as const;
+
+export interface AdminSystemHealth {
+  status: AdminSystemHealthStatus;
+  checks: HealthCheckItem[];
+  routeMetrics: RouteMetric[];
+}
+
 export interface ErrorResponse {
   error: string;
 }
@@ -378,4 +711,34 @@ export type LookupOrderParams = {
 orderNumber: string;
 phone: string;
 };
+
+export type GetAdminOrdersParams = {
+status?: string;
+/**
+ * @maxLength 80
+ */
+courier?: string;
+/**
+ * @maxLength 80
+ */
+zone?: string;
+paymentMethod?: GetAdminOrdersPaymentMethod;
+/**
+ * @maxLength 120
+ */
+search?: string;
+/**
+ * @minimum 1
+ * @maximum 250
+ */
+limit?: number;
+};
+
+export type GetAdminOrdersPaymentMethod = typeof GetAdminOrdersPaymentMethod[keyof typeof GetAdminOrdersPaymentMethod];
+
+
+export const GetAdminOrdersPaymentMethod = {
+  cod: 'cod',
+  prepaid: 'prepaid',
+} as const;
 

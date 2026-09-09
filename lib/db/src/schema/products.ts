@@ -18,12 +18,15 @@ export const productsTable = pgTable("sulm_products", {
   stock: integer("stock").notNull().default(0),
   featured: boolean("featured").notNull().default(false),
   story: text("story").notNull(),
+  status: text("status").notNull().default("active"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const insertProductSchema = createInsertSchema(productsTable).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export type InsertProduct = z.infer<typeof insertProductSchema>;

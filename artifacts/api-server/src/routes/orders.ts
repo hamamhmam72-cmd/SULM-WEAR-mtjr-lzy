@@ -28,6 +28,11 @@ const toOrder = (order: typeof ordersTable.$inferSelect) => ({
   total: Number(order.total),
   items: order.items as OrderLine[],
   createdAt: order.createdAt.toISOString(),
+    updatedAt: order.updatedAt.toISOString(),
+    inventoryDeductedAt: order.inventoryDeductedAt?.toISOString() ?? null,
+    packedAt: order.packedAt?.toISOString() ?? null,
+    shippedAt: order.shippedAt?.toISOString() ?? null,
+    deliveredAt: order.deliveredAt?.toISOString() ?? null,
 });
 
 router.post("/orders", async (req, res): Promise<void> => {

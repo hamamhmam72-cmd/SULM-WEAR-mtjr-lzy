@@ -118,6 +118,7 @@ router.get("/products", async (req, res): Promise<void> => {
   }
   const { category, search, featured } = parsed.data;
   const filters = [];
+  filters.push(eq(productsTable.status, "active"));
   if (category) filters.push(eq(productsTable.category, category));
   if (featured !== undefined) filters.push(eq(productsTable.featured, featured));
   if (search) {
@@ -143,7 +144,7 @@ router.get("/products/:slug", async (req, res): Promise<void> => {
   const [row] = await db
     .select()
     .from(productsTable)
-    .where(eq(productsTable.slug, parsed.data.slug));
+    .where(and(eq(productsTable.slug, parsed.data.slug), eq(productsTable.status, "active")));
   if (!row) {
     res.status(404).json({ error: "Product not found" });
     return;
