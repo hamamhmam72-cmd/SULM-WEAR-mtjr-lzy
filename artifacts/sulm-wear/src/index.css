@@ -95,6 +95,7 @@
     @apply font-sans antialiased bg-background text-foreground;
     min-width: 320px;
   }
+  html[dir="rtl"] body { font-family: 'Noto Kufi Arabic', sans-serif; }
   button, input, select, textarea { font: inherit; }
   ::selection { background: hsl(var(--accent)); color: hsl(var(--accent-foreground)); }
 }

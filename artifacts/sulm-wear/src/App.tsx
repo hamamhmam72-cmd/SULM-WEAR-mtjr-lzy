@@ -257,7 +257,11 @@ type LanguageContextValue = { locale: Locale; setLocale: (locale: Locale) => voi
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => (localStorage.getItem('sulm-locale') as Locale) || 'en');
+  const [locale, setLocaleState] = useState<Locale>(() => {
+    const requestedLocale = new URLSearchParams(window.location.search).get('lang');
+    if (requestedLocale === 'ar' || requestedLocale === 'en') return requestedLocale;
+    return (localStorage.getItem('sulm-locale') as Locale) || 'en';
+  });
   const setLocale = (nextLocale: Locale) => {
     setLocaleState(nextLocale);
     localStorage.setItem('sulm-locale', nextLocale);
@@ -265,6 +269,7 @@ function LanguageProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     document.documentElement.lang = locale;
     document.documentElement.dir = locale === 'ar' ? 'rtl' : 'ltr';
+    localStorage.setItem('sulm-locale', locale);
   }, [locale]);
   const value = useMemo(() => ({ locale, setLocale, t: (key: TranslationKey) => translations[locale][key] }), [locale]);
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
@@ -554,14 +559,15 @@ function SkeletonGrid() {
 }
 
 function Home({ onAdd }: { onAdd: (product: Product) => void }) {
+  const { t } = useLanguage();
   const summaryQuery = useGetStorefrontSummary({ query: { queryKey: getGetStorefrontSummaryQueryKey() } });
   const productsQuery = useGetProducts(undefined, { query: { queryKey: getGetProductsQueryKey() } });
-  const [category, setCategory] = useState('All pieces');
+  const [category, setCategory] = useState('all');
   const [search, setSearch] = useState('');
   const products = productsQuery.data ?? [];
-  const categories = ['All pieces', ...Array.from(new Set(products.map((product) => product.category)))];
+  const categories = ['all', ...Array.from(new Set(products.map((product) => product.category)))];
   const filtered = useMemo(() => products.filter((product) => {
-    const matchesCategory = category === 'All pieces' || product.category === category;
+    const matchesCategory = category === 'all' || product.category === category;
     const term = search.trim().toLowerCase();
     return matchesCategory && (!term || `${product.name} ${product.nameAr} ${product.category}`.toLowerCase().includes(term));
   }), [category, products, search]);
@@ -572,13 +578,12 @@ function Home({ onAdd }: { onAdd: (product: Product) => void }) {
         <div className="hero-grid pointer-events-none absolute inset-0 opacity-70" />
         <div className="mx-auto grid min-h-[660px] max-w-[1440px] items-end gap-12 px-5 pb-16 pt-16 sm:px-8 lg:grid-cols-[1.1fr_.9fr] lg:px-12 lg:pb-24 lg:pt-24">
           <div className="relative z-10 fade-up">
-            <p className="mb-7 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[.25em] text-accent"><span className="h-px w-9 bg-accent" />Edition 01 / Amman</p>
-            <h1 className="display max-w-4xl text-[clamp(4rem,10vw,9.6rem)] font-extrabold uppercase leading-[.83] tracking-[-.085em]">Less noise.<br /><span className="metal-word">More form.</span></h1>
+            <p className="mb-7 flex items-center gap-3 text-[10px] font-bold uppercase tracking-[.25em] text-accent"><span className="h-px w-9 bg-accent" />{t('edition')}</p>
+            <h1 className="display max-w-4xl text-[clamp(4rem,10vw,9.6rem)] font-extrabold uppercase leading-[.83] tracking-[-.085em]">{t('heroTitle')}<br /><span className="metal-word">{t('heroTitleAccent')}</span></h1>
             <div className="mt-10 max-w-md">
-              <p className="text-base leading-7 text-muted-foreground">A considered wardrobe for the space between plans. Quietly sharp, built for the way Jordan moves now.</p>
-              <p className="font-arabic mt-4 text-sm text-muted-foreground" dir="rtl">أساسيات يومية بتفاصيل مدروسة، من عمّان.</p>
+              <p className="text-base leading-7 text-muted-foreground">{t('heroBody')}</p>
             </div>
-            <a href="#shop" className="mt-9 inline-flex items-center gap-3 border-b border-foreground pb-2 text-[11px] font-bold uppercase tracking-[.18em] transition-colors hover:border-accent hover:text-accent" data-testid="link-hero-shop">Explore the collection <ArrowDownRight size={16} /></a>
+            <a href="#shop" className="mt-9 inline-flex items-center gap-3 border-b border-foreground pb-2 text-[11px] font-bold uppercase tracking-[.18em] transition-colors hover:border-accent hover:text-accent" data-testid="link-hero-shop">{t('heroAction')} <ArrowDownRight size={16} /></a>
           </div>
           <div className="relative hidden min-h-[490px] items-end justify-end lg:flex fade-up fade-up-delay-2">
             <div className="absolute right-[13%] top-[5%] h-[330px] w-[72%] border border-foreground/20" />
@@ -586,10 +591,10 @@ function Home({ onAdd }: { onAdd: (product: Product) => void }) {
               <img src="/images/sulm-logo.jpg" alt="" className="absolute inset-0 h-full w-full object-cover mix-blend-overlay opacity-60 dark:opacity-40" />
               <div className="hero-grid absolute inset-0 opacity-40" />
               <div className="absolute inset-x-[14%] top-[9%] border-t border-white/40" />
-              <div className="absolute bottom-[9%] left-[14%] text-[10px] font-bold uppercase tracking-[.24em] text-white/90">Move with intent</div>
+              <div className="absolute bottom-[9%] left-[14%] text-[10px] font-bold uppercase tracking-[.24em] text-white/90">{t('moveWithIntent')}</div>
               <div className="absolute bottom-[9%] right-[11%] h-16 w-px bg-white/50" />
             </div>
-            <p className="absolute bottom-3 left-0 max-w-[160px] text-[10px] font-bold uppercase leading-5 tracking-[.18em] text-muted-foreground">Object / 001<br />The daily uniform</p>
+            <p className="absolute bottom-3 left-0 max-w-[160px] text-[10px] font-bold uppercase leading-5 tracking-[.18em] text-muted-foreground">Object / 001<br />{t('dailyUniform')}</p>
           </div>
         </div>
       </section>
@@ -605,9 +610,9 @@ function Home({ onAdd }: { onAdd: (product: Product) => void }) {
       <section id="shop" className="mx-auto max-w-[1440px] scroll-mt-20 px-5 py-20 sm:px-8 lg:px-12 lg:py-28">
         <div className="mb-10 flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div><p className="mb-4 text-[10px] font-bold uppercase tracking-[.23em] text-accent">The collection / 01</p><h2 className="display text-5xl font-bold tracking-[-.06em] sm:text-6xl">The daily edit</h2><p className="mt-4 max-w-lg text-sm leading-6 text-muted-foreground">Designed to work hard without looking like it. Build your rotation one deliberate piece at a time.</p></div>
-          <div className="flex flex-col items-start gap-3 md:items-end"><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search the edit" className="h-9 w-48 border-b border-border bg-transparent pl-8 text-xs outline-none placeholder:text-muted-foreground focus:border-accent" data-testid="input-search-products" /></div><div className="flex flex-wrap gap-2">{categories.map((item) => <button key={item} onClick={() => setCategory(item)} className={`border px-3 py-2 text-[10px] font-bold uppercase tracking-[.1em] transition-colors ${category === item ? 'border-foreground bg-foreground text-background' : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'}`} data-testid={`button-category-${item.toLowerCase().replace(/\s/g, '-')}`}>{item}</button>)}</div></div>
+          <div className="flex flex-col items-start gap-3 md:items-end"><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground rtl:left-auto rtl:right-3" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('search')} aria-label={t('search')} className="h-9 w-48 border-b border-border bg-transparent pl-8 text-xs outline-none placeholder:text-muted-foreground focus:border-accent rtl:pl-0 rtl:pr-8" data-testid="input-search-products" /></div><div className="flex flex-wrap gap-2">{categories.map((item) => <button key={item} onClick={() => setCategory(item)} className={`border px-3 py-2 text-[10px] font-bold uppercase tracking-[.1em] transition-colors ${category === item ? 'border-foreground bg-foreground text-background' : 'border-border text-muted-foreground hover:border-foreground hover:text-foreground'}`} data-testid={`button-category-${item.toLowerCase().replace(/\s/g, '-')}`}>{item === 'all' ? t('allPieces') : item}</button>)}</div></div>
         </div>
-        {productsQuery.isLoading ? <SkeletonGrid /> : productsQuery.isError ? <StateBlock title="The edit is taking a moment." body="We could not load the collection. Check your connection and try again." action="Retry" onAction={() => productsQuery.refetch()} /> : filtered.length === 0 ? <StateBlock title="Nothing matches that search." body="Try another phrase or return to all pieces." action="Reset edit" onAction={() => { setSearch(''); setCategory('All pieces'); }} /> : <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4">{filtered.map((product) => <ProductCard key={product.id} product={product} onAdd={onAdd} />)}</div>}
+        {productsQuery.isLoading ? <SkeletonGrid /> : productsQuery.isError ? <StateBlock title="The edit is taking a moment." body="We could not load the collection. Check your connection and try again." action="Retry" onAction={() => productsQuery.refetch()} /> : filtered.length === 0 ? <StateBlock title={t('noProducts')} body={t('noProducts')} action={t('resetFilters')} onAction={() => { setSearch(''); setCategory('all'); }} /> : <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4">{filtered.map((product) => <ProductCard key={product.id} product={product} onAdd={onAdd} />)}</div>}
       </section>
 
       <section className="border-y border-border/70 bg-card">
@@ -642,6 +647,7 @@ function StateBlock({ title, body, action, onAction }: { title: string; body: st
 }
 
 function ProductPage({ onAdd }: { onAdd: (product: Product, variant?: import("@workspace/api-client-react").StorefrontVariant) => void }) {
+  const { locale, t } = useLanguage();
   const { slug = '' } = useParams<{ slug: string }>();
   const query = useGetProduct(slug, { query: { queryKey: getGetProductQueryKey(slug) } });
   
@@ -693,21 +699,20 @@ function ProductPage({ onAdd }: { onAdd: (product: Product, variant?: import("@w
   };
 
   if (query.isLoading) return <div className="mx-auto max-w-[1440px] px-5 py-20 sm:px-8 lg:px-12"><SkeletonGrid /></div>;
-  if (query.isError || !product) return <div className="mx-auto max-w-[680px] px-5 py-32 text-center sm:px-8"><StateBlock title="This piece is off the rail." body="The product may have moved on, or the link is not quite right." action="Back to the edit" onAction={() => window.history.back()} /></div>;
+  if (query.isError || !product) return <div className="mx-auto max-w-[680px] px-5 py-32 text-center sm:px-8"><StateBlock title={t('productOffRail')} body={t('productMoved')} action={t('backToEdit')} onAction={() => window.history.back()} /></div>;
   
   return (
     <main className="mx-auto max-w-[1440px] px-5 py-8 sm:px-8 lg:px-12 lg:py-14">
-      <Link href="/" className="mb-8 inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.17em] text-muted-foreground hover:text-foreground" data-testid="link-back-shop"><ArrowLeft size={14} /> Back to the edit</Link>
+      <Link href="/" className="mb-8 inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.17em] text-muted-foreground hover:text-foreground" data-testid="link-back-shop"><ArrowLeft size={14} className="rtl:rotate-180" /> {t('backToEdit')}</Link>
       <div className="grid gap-10 lg:grid-cols-[1.05fr_.95fr] lg:gap-20">
         <div className="lg:sticky lg:top-28 lg:h-[calc(100vh-9rem)]"><ProductVisual product={product} large /></div>
         <div className="flex flex-col justify-center py-3">
           <p className="text-[10px] font-bold uppercase tracking-[.22em] text-accent">{product.category} / {String(product.id).padStart(2, '0')}</p>
-          <h1 className="display mt-5 text-5xl font-bold leading-[.9] tracking-[-.07em] sm:text-7xl" data-testid="text-product-title">{product.name}</h1>
-          <p className="font-arabic mt-4 text-sm text-muted-foreground" dir="rtl">{product.nameAr}</p>
+          <h1 className="display mt-5 text-5xl font-bold leading-[.9] tracking-[-.07em] sm:text-7xl" data-testid="text-product-title">{locale === 'ar' ? product.nameAr : product.name}</h1>
+          {locale === 'en' && <p className="font-arabic mt-4 text-sm text-muted-foreground" dir="rtl">{product.nameAr}</p>}
           <div className="mt-7 flex items-baseline gap-3"><span className="font-mono text-lg" data-testid="text-product-price">{money(effectivePrice)}</span>{effectiveCompareAt && <span className="font-mono text-sm text-muted-foreground line-through">{money(effectiveCompareAt)}</span>}</div>
           <div className="my-9 h-px bg-border" />
-          <p className="max-w-lg text-sm leading-7 text-muted-foreground">{product.description}</p>
-          <p className="font-arabic mt-4 max-w-lg text-sm leading-7 text-muted-foreground" dir="rtl">{product.descriptionAr}</p>
+          <p className="max-w-lg text-sm leading-7 text-muted-foreground">{locale === 'ar' ? product.descriptionAr : product.description}</p>
           
           <div className="mt-9">
             <div className="mb-3 flex items-center justify-between"><span className="text-[10px] font-bold uppercase tracking-[.17em]">Color / {selectedColor}</span></div>
@@ -739,9 +744,9 @@ function ProductPage({ onAdd }: { onAdd: (product: Product, variant?: import("@w
             </div>
           )}
 
-          <button disabled={!selectedVariant || selectedVariant.stock < 1} onClick={() => selectedVariant && onAdd(product, selectedVariant)} className="mt-5 flex h-14 items-center justify-center gap-3 bg-foreground text-[11px] font-bold uppercase tracking-[.18em] text-background transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40" data-testid="button-add-to-bag">{!selectedVariant || selectedVariant.stock < 1 ? 'Sold out' : 'Add to bag'} <ArrowRight size={16} /></button>
+          <button disabled={!selectedVariant || selectedVariant.stock < 1} onClick={() => selectedVariant && onAdd(product, selectedVariant)} className="mt-5 flex h-14 items-center justify-center gap-3 bg-foreground text-[11px] font-bold uppercase tracking-[.18em] text-background transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40" data-testid="button-add-to-bag">{!selectedVariant || selectedVariant.stock < 1 ? t('chooseSize') : t('addToBag')} <ArrowRight size={16} className="rtl:rotate-180" /></button>
           
-          <div className="mt-10 grid gap-4 border-y border-border py-5 text-sm"><p className="flex items-center gap-3"><Truck size={17} strokeWidth={1.2} className="text-accent" /> Delivery across Jordan in 2–4 days</p><p className="flex items-center gap-3"><RotateCcw size={17} strokeWidth={1.2} className="text-accent" /> Easy exchanges within 7 days</p></div>
+          <div className="mt-10 grid gap-4 border-y border-border py-5 text-sm"><p className="flex items-center gap-3"><Truck size={17} strokeWidth={1.2} className="text-accent" /> {t('delivery')}</p><p className="flex items-center gap-3"><RotateCcw size={17} strokeWidth={1.2} className="text-accent" /> {t('exchanges')}</p></div>
           <div className="mt-10 border border-border/80 p-5"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-accent">Smart fit / quick guide</p><h2 className="mt-2 text-base font-semibold">Find your starting point</h2></div><CircleHelp size={18} strokeWidth={1.2} className="text-muted-foreground" /></div><div className="mt-5 grid grid-cols-2 gap-3"><label className="text-[10px] font-bold uppercase tracking-[.13em] text-muted-foreground">Height (cm)<input value={height} onChange={(event) => setHeight(event.target.value)} type="number" placeholder="174" className="mt-2 h-10 w-full border border-border bg-transparent px-3 text-sm outline-none focus:border-accent" data-testid="input-fit-height" /></label><label className="text-[10px] font-bold uppercase tracking-[.13em] text-muted-foreground">Weight (kg)<input value={weight} onChange={(event) => setWeight(event.target.value)} type="number" placeholder="72" className="mt-2 h-10 w-full border border-border bg-transparent px-3 text-sm outline-none focus:border-accent" data-testid="input-fit-weight" /></label></div><button onClick={calculateFit} className="mt-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.17em] hover:text-accent" data-testid="button-calculate-fit">Calculate fit <ChevronRight size={14} /></button>{fit && <p className="mt-4 border-t border-border pt-4 text-sm">Your starting point: <strong className="text-accent">{fit}</strong>. Prefer a looser silhouette? Go one size up.</p>}</div>
           <details className="group border-b border-border py-5"><summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold">The product story <ChevronDown size={16} className="transition-transform group-open:rotate-180" /></summary><p className="mt-4 text-sm leading-7 text-muted-foreground">{product.story}</p></details>
         </div>
@@ -1066,6 +1071,7 @@ function NotFoundPage() {
 }
 
 function RouterContent({ cart, setCart, cartOpen, setCartOpen }: { cart: CartItem[]; setCart: (items: CartItem[]) => void; cartOpen: boolean; setCartOpen: (open: boolean) => void }) {
+  const { t } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const [success, setSuccess] = useState<Order>();
   const add = (product: Product, variant?: import("@workspace/api-client-react").StorefrontVariant) => {
@@ -1099,11 +1105,11 @@ function RouterContent({ cart, setCart, cartOpen, setCartOpen }: { cart: CartIte
           {menuOpen && !isAdminOrAuth && (
             <div className="fixed inset-x-0 top-[72px] z-30 border-b border-border bg-background p-6 lg:hidden">
               <div className="grid gap-5 text-[11px] font-bold uppercase tracking-[.17em]">
-                <a href="#shop" onClick={() => setMenuOpen(false)} data-testid="mobile-link-shop">Shop</a>
-                <a href="#story" onClick={() => setMenuOpen(false)} data-testid="mobile-link-story">The SULM standard</a>
-                <Link href="/track-order" onClick={() => setMenuOpen(false)} data-testid="mobile-link-track">Track</Link>
-                <Link href="/returns" onClick={() => setMenuOpen(false)} data-testid="mobile-link-returns">Returns</Link>
-                <Link href="/loyalty" onClick={() => setMenuOpen(false)} data-testid="mobile-link-loyalty">Atelier</Link>
+                <a href="#shop" onClick={() => setMenuOpen(false)} data-testid="mobile-link-shop">{t('shop')}</a>
+                <a href="#story" onClick={() => setMenuOpen(false)} data-testid="mobile-link-story">{t('standard')}</a>
+                <Link href="/track-order" onClick={() => setMenuOpen(false)} data-testid="mobile-link-track">{t('track')}</Link>
+                <Link href="/returns" onClick={() => setMenuOpen(false)} data-testid="mobile-link-returns">{t('returns')}</Link>
+                <Link href="/loyalty" onClick={() => setMenuOpen(false)} data-testid="mobile-link-loyalty">{t('atelier')}</Link>
               </div>
             </div>
           )}
@@ -1204,7 +1210,7 @@ function App() {
   });
   const [cartOpen, setCartOpen] = useState(false);
   const setCart = (items: CartItem[]) => { setCartState(items); localStorage.setItem('sulm-cart', JSON.stringify(items)); };
-  return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><RouterContent cart={cart} setCart={setCart} cartOpen={cartOpen} setCartOpen={setCartOpen} /></WouterRouter><Toaster /><CartReminderPolling /></TooltipProvider></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><TooltipProvider><LanguageProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><RouterContent cart={cart} setCart={setCart} cartOpen={cartOpen} setCartOpen={setCartOpen} /></WouterRouter><Toaster /><CartReminderPolling /></LanguageProvider></TooltipProvider></QueryClientProvider>;
 }
 
 export default App;
