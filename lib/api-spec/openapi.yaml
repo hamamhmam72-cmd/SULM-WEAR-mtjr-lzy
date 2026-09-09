@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: storefront
+    description: Public storefront operations
+  - name: orders
+    description: Customer order operations
 paths:
   /healthz:
     get:
@@ -24,6 +28,129 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /storefront/summary:
+    get:
+      operationId: getStorefrontSummary
+      tags: [storefront]
+      summary: Get storefront summary
+      description: Returns the public summary numbers and shipping promise for the storefront.
+      responses:
+        "200":
+          description: Storefront summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StorefrontSummary"
+  /products:
+    get:
+      operationId: getProducts
+      tags: [storefront]
+      summary: List products
+      description: Returns active products for the public storefront, optionally filtered by category or search.
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: featured
+          in: query
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Product list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+  /products/{slug}:
+    get:
+      operationId: getProduct
+      tags: [storefront]
+      summary: Get a product
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /orders:
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: Create an order
+      description: Creates a customer order using the selected products and delivery details.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "201":
+          description: Created order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Invalid order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /orders/lookup:
+    get:
+      operationId: lookupOrder
+      tags: [orders]
+      summary: Look up an order
+      description: Looks up a customer's order using its order number and phone number.
+      parameters:
+        - name: orderNumber
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: phone
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +160,182 @@ components:
           type: string
       required:
         - status
+    StorefrontSummary:
+      type: object
+      properties:
+        productCount:
+          type: integer
+        customerCount:
+          type: integer
+        shippingPromise:
+          type: string
+        instagramUrl:
+          type: string
+        phone:
+          type: string
+      required:
+        - productCount
+        - customerCount
+        - shippingPromise
+        - instagramUrl
+        - phone
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        slug:
+          type: string
+        name:
+          type: string
+        nameAr:
+          type: string
+        category:
+          type: string
+        price:
+          type: number
+        compareAtPrice:
+          type: ["number", "null"]
+        description:
+          type: string
+        descriptionAr:
+          type: string
+        image:
+          type: string
+        accent:
+          type: string
+        sizes:
+          type: array
+          items:
+            type: string
+        stock:
+          type: integer
+        featured:
+          type: boolean
+        story:
+          type: string
+      required:
+        - id
+        - slug
+        - name
+        - nameAr
+        - category
+        - price
+        - compareAtPrice
+        - description
+        - descriptionAr
+        - image
+        - accent
+        - sizes
+        - stock
+        - featured
+        - story
+    OrderItemInput:
+      type: object
+      properties:
+        productSlug:
+          type: string
+        size:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+      required:
+        - productSlug
+        - size
+        - quantity
+    OrderInput:
+      type: object
+      properties:
+        customerName:
+          type: string
+          minLength: 2
+        phone:
+          type: string
+          minLength: 8
+        city:
+          type: string
+        address:
+          type: string
+        paymentMethod:
+          type: string
+          enum: [cod, prepaid]
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/OrderItemInput"
+      required:
+        - customerName
+        - phone
+        - city
+        - address
+        - paymentMethod
+        - items
+    OrderItem:
+      type: object
+      properties:
+        productName:
+          type: string
+        productSlug:
+          type: string
+        size:
+          type: string
+        quantity:
+          type: integer
+        unitPrice:
+          type: number
+      required:
+        - productName
+        - productSlug
+        - size
+        - quantity
+        - unitPrice
+    Order:
+      type: object
+      properties:
+        id:
+          type: integer
+        orderNumber:
+          type: string
+        customerName:
+          type: string
+        phone:
+          type: string
+        city:
+          type: string
+        address:
+          type: string
+        paymentMethod:
+          type: string
+        status:
+          type: string
+          enum: [new, processing, packed, ready_to_ship, shipped]
+        total:
+          type: number
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        createdAt:
+          type: string
+      required:
+        - id
+        - orderNumber
+        - customerName
+        - phone
+        - city
+        - address
+        - paymentMethod
+        - status
+        - total
+        - items
+        - createdAt
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
 

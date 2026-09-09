@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "SULM WEAR"
+description = "An online-only fashion storefront for SULM WEAR with bilingual shopping, product storytelling, smart sizing, cart checkout, and a foundation for advanced fulfillment operations."
+version = "1.0.0"
+id = "artifacts/sulm-wear"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20883
+
+[services.development]
+run = "pnpm --filter @workspace/sulm-wear run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/sulm-wear", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/sulm-wear/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20883"
+BASE_PATH = "/"

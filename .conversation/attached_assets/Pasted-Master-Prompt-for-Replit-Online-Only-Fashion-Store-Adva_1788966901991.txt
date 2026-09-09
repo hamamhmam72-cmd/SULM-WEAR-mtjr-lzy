@@ -1,0 +1,45 @@
+Master Prompt for Replit (Online-Only Fashion Store, Advanced Order Management System & AI Omnichannel Agent):
+
+Build a high-performance, 100% online-only fashion brand e-commerce web application with a modern silver-and-black aesthetic, dark/light mode toggles, an integrated advanced Order Management System (OMS) for high-volume fulfillment, and an omni-channel AI Customer Support Agent for WhatsApp and Instagram.
+
+1. Brand Trust, Credibility, and Engagement
+
+Interactive "About Us" & Product Story: Showcase behind-the-scenes design processes, fabric sourcing, and manufacturing transparency to break trust barriers.
+
+User-Generated Content (UGC) Feed: Dynamic social feed embedding Instagram and TikTok customer posts directly onto product pages, showing real bodies wearing the apparel.
+
+Hassle-Free Returns Portal: Dedicated customer portal allowing instant return/exchange requests with door-to-door courier integration options.
+
+2. The Sizing Problem Solution
+
+Smart Fit Calculator: Interactive tool where users input height, weight, and age, matching them against exact flat-lay garment measurements (chest, length, shoulders, sleeves in millimeters) to minimize high return rates.
+
+3. Customer Retention & Growth Engine
+
+Tiered Loyalty Program: Points awarded for purchases, product reviews, and social shares, redeemable as wallet credit.
+
+Shop the Look & Smart Bundles: Automated cross-selling components (e.g., "Buy this pants, get the shirt half off") to increase Average Order Value (AOV).
+
+Smart Abandoned Cart Reminders: Automated WhatsApp/SMS alerts with time-sensitive discount codes for uncompleted checkouts.
+
+4. Advanced Order Management System (OMS) & Fulfillment Dashboard
+
+Unified Order Dashboard (Kanban & Table Views): A centralized operations screen that streams all incoming orders in real-time from the website, Instagram, and WhatsApp.
+
+Smart Filtering & Sorting Matrix: Quick-filter tools for warehouse staff to sort orders by status (New, Processing, Packed, Ready to Ship, Shipped), shipping zone/courier, and payment method (Prepaid vs. Cash on Delivery), plus instant search by order ID, customer name, or phone number.
+
+Batch Processing & Status Transition: Multi-select functionality enabling staff to shift multiple orders to "Processing" with a single click, instantly generating a consolidated "Pick & Pack List" for warehouse efficiency.
+
+Automated Inventory Deduction: Real-time stock reduction upon shifting an order to "Processing," triggering immediate alerts if an item goes out of stock.
+
+Bulk AWB & Invoice Printing: One-click batch printing of shipping labels and packing slips for fast fulfillment.
+
+Automated Customer Notifications: Instant WhatsApp/SMS triggers updating customers the moment their order status changes to "Processing" or "Shipped" to eliminate "Where is my order?" support calls.
+
+5. Omni-Channel AI Customer Support Agent (WhatsApp & Instagram)
+
+Autonomous Conversational AI Bot: Integrated AI agent connected via official APIs (Meta Cloud API / Instagram Graph API) to handle customer inquiries 24/7.
+
+Intelligent Order Tracking & Inquiries: The AI agent instantly answers questions regarding order status ("Where is my order?"), shipping updates, and store policies by securely querying the internal database.
+
+Smart Product Recommendations & Direct Checkout: The AI agent assists customers in choosing sizes using the sizing guidelines, recommends matching items (Shop the Look), and guides them to complete purchases directly through chat links.
