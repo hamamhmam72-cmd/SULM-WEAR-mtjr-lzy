@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { 
   useGetAdminOrders, getGetAdminOrdersQueryKey, 
   useBatchUpdateOrderStatus, BatchOrderStatusInputStatus, BatchOrderStatusResult,
@@ -16,6 +16,7 @@ export function AdminOrders() {
   const [zone, setZone] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<GetAdminOrdersPaymentMethod | ''>('');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   
   const queryParams = { 
@@ -24,12 +25,19 @@ export function AdminOrders() {
     courier: courier || undefined,
     zone: zone || undefined,
     paymentMethod: (paymentMethod || undefined) as GetAdminOrdersPaymentMethod | undefined
+    ,page,
+    limit: 50
   };
 
-  const { data: orders, isLoading, isError } = useGetAdminOrders(
+  const { data: orderPage, isLoading, isError } = useGetAdminOrders(
     queryParams,
-    { query: { queryKey: getGetAdminOrdersQueryKey(queryParams) } }
+    { query: { queryKey: getGetAdminOrdersQueryKey(queryParams), refetchInterval: 15_000, refetchOnWindowFocus: true } }
   );
+  const orders = orderPage?.orders;
+  useEffect(() => {
+    setSelected(new Set());
+    setPage(1);
+  }, [status, courier, zone, paymentMethod, search]);
 
   const batchUpdate = useBatchUpdateOrderStatus();
   const [pickListResult, setPickListResult] = useState<BatchOrderStatusResult | null>(null);
@@ -52,11 +60,12 @@ export function AdminOrders() {
   };
 
   const handleBatchStatus = (newStatus: BatchOrderStatusInputStatus) => {
-    if (selected.size === 0) return;
+    const visibleOrderIds = Array.from(selected).filter((id) => orders?.some((order) => order.id === id));
+    if (visibleOrderIds.length === 0) return;
     setBatchError(null);
     batchUpdate.mutate(
       { data: { 
-          orderIds: Array.from(selected), 
+          orderIds: visibleOrderIds,
           status: newStatus, 
           courier: batchCourier || null, 
           zone: batchZone || null 
@@ -82,10 +91,15 @@ export function AdminOrders() {
   const money = (val: number) => `${val.toFixed(2)} JOD`;
 
   return (
-    <div className="flex h-full flex-col no-print">
+    <div className="admin-orders-root flex h-full flex-col">
       <header className="flex h-16 shrink-0 items-center justify-between border-b border-border px-6">
         <h2 className="text-sm font-bold uppercase tracking-[.18em]">Orders</h2>
         <div className="flex items-center gap-2">
+           <span className="hidden text-[10px] uppercase tracking-widest text-muted-foreground sm:inline">
+             {orderPage ? `${orderPage.total} orders · ${orderPage.page}/${orderPage.totalPages}` : "Loading"}
+           </span>
+           <button aria-label="Previous order page" disabled={!orderPage || page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} className="border border-border px-2 py-1 text-xs disabled:opacity-30">←</button>
+           <button aria-label="Next order page" disabled={!orderPage || page >= orderPage.totalPages} onClick={() => setPage((value) => value + 1)} className="border border-border px-2 py-1 text-xs disabled:opacity-30">→</button>
            <div className="flex bg-muted p-1 rounded-sm">
              <button aria-label="Table View" onClick={() => setView('table')} className={`p-1.5 rounded-sm ${view === 'table' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><List size={16} /></button>
              <button aria-label="Kanban View" onClick={() => setView('kanban')} className={`p-1.5 rounded-sm ${view === 'kanban' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><LayoutGrid size={16} /></button>
@@ -243,7 +257,7 @@ export function AdminOrders() {
           </div>
         ) : (
           <div className="flex h-full gap-4 overflow-x-auto pb-4 items-start">
-            {['new', 'confirmed', 'processing', 'packed', 'ready_to_ship', 'returned'].map(colStatus => {
+            {['new', 'confirmed', 'processing', 'packed', 'ready_to_ship', 'shipped', 'delivered', 'canceled', 'returned'].map(colStatus => {
               const colOrders = orders?.filter(o => o.status === colStatus) || [];
               return (
                 <div key={colStatus} className="flex max-h-full w-72 flex-col gap-3 rounded-sm border border-border bg-card p-3 shrink-0">

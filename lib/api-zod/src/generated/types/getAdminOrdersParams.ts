@@ -24,7 +24,11 @@ paymentMethod?: GetAdminOrdersPaymentMethod;
 search?: string;
 /**
  * @minimum 1
- * @maximum 250
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
  */
 limit?: number;
 };

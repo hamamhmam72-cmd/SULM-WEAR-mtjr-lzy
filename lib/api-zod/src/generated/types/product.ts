@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { StorefrontVariant } from './storefrontVariant';
 
 export interface Product {
   id: number;
@@ -23,4 +24,5 @@ export interface Product {
   stock: number;
   featured: boolean;
   story: string;
+  variants: StorefrontVariant[];
 }

@@ -8,6 +8,7 @@ import {
   GetStorefrontSummaryResponse,
 } from "@workspace/api-zod";
 import { db, productsTable } from "@workspace/db";
+import { variantsFor } from "../lib/catalog";
 
 const router: IRouter = Router();
 
@@ -86,12 +87,13 @@ const ensureSeeded = async (): Promise<void> => {
   await db.insert(productsTable).values(seedProducts).onConflictDoNothing();
 };
 
-const toProduct = (product: typeof productsTable.$inferSelect) => ({
+const toProduct = (product: typeof productsTable.$inferSelect, variants: any[]) => ({
   ...product,
   price: Number(product.price),
   compareAtPrice:
     product.compareAtPrice == null ? null : Number(product.compareAtPrice),
   createdAt: undefined,
+  variants: variants.filter((v) => v.active).map((v) => ({ ...v, price: v.price == null ? null : Number(v.price), compareAtPrice: v.compareAtPrice == null ? null : Number(v.compareAtPrice), createdAt: undefined, updatedAt: undefined })),
 });
 
 router.get("/storefront/summary", async (req, res): Promise<void> => {
@@ -131,7 +133,7 @@ router.get("/products", async (req, res): Promise<void> => {
     .from(productsTable)
     .where(filters.length ? and(...filters) : undefined)
     .orderBy(productsTable.featured, productsTable.createdAt);
-  res.json(GetProductsResponse.parse(rows.map(toProduct)));
+  res.json(GetProductsResponse.parse(await Promise.all(rows.map(async (p) => toProduct(p, await variantsFor(p.id))))));
 });
 
 router.get("/products/:slug", async (req, res): Promise<void> => {
@@ -149,7 +151,7 @@ router.get("/products/:slug", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Product not found" });
     return;
   }
-  res.json(GetProductResponse.parse(toProduct(row)));
+  res.json(GetProductResponse.parse(toProduct(row, await variantsFor(row.id))));
 });
 
 export default router;

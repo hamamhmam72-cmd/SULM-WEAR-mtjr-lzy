@@ -5,6 +5,8 @@ export type DiagnosticCheck = { key: string; status: "healthy" | "warning" | "cr
 const routeMetrics = new Map<string, { requests: number; errors: number; totalMs: number }>();
 
 export function recordRouteMetric(route: string, durationMs: number, error = false): void {
+  // Keep diagnostics bounded even when a proxy supplies unbounded route strings.
+  if (routeMetrics.size >= 200 && !routeMetrics.has(route)) route = "OTHER";
   const item = routeMetrics.get(route) ?? { requests: 0, errors: 0, totalMs: 0 };
   item.requests += 1; item.totalMs += durationMs; if (error) item.errors += 1;
   routeMetrics.set(route, item);

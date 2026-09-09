@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, inArray } from "drizzle-orm";
 import {
   CreateLoyaltyReviewBody,
   CreateLoyaltyReviewResponse,
@@ -29,6 +29,7 @@ import {
   loyaltyEventsTable,
   ordersTable,
   productsTable,
+  productVariantsTable,
   returnRequestsTable,
 } from "@workspace/db";
 import { calculateBundle, cartFingerprint, encryptPhone, hashPhone, maskPhone, newPublicToken, normalizePhone, signLoyaltyToken, verifyLoyaltyToken } from "../lib/retention";
@@ -124,7 +125,7 @@ router.post("/loyalty/reviews", async (req, res): Promise<void> => {
   if (!order || !items?.some((item) => item.productSlug === parsed.data.productSlug)) {
     res.status(404).json({ error: "Verified purchase not found" }); return;
   }
-  if (order.status !== "shipped") {
+  if (order.status !== "delivered") {
     res.status(400).json({ error: "Reviews earn points after the order is fulfilled" }); return;
   }
   const account = await accountFor(parsed.data.phone);
@@ -178,9 +179,17 @@ router.post("/bundles/quote", async (req, res): Promise<void> => {
   const parsed = QuoteBundleBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid cart" }); return; }
   const products = await db.select().from(productsTable);
+  const variantIds = [...new Set(parsed.data.items.map((item) => item.variantId))];
+  const variants = variantIds.length
+    ? await db.select().from(productVariantsTable).where(inArray(productVariantsTable.id, variantIds))
+    : [];
   const lines = parsed.data.items.map((item) => {
     const product = products.find((row) => row.slug === item.productSlug);
-    return product ? { ...item, productName: product.name, unitPrice: Number(product.price) } : null;
+    const variant = variants.find((row) => row.id === item.variantId);
+    return product && product.status === "active" && variant && variant.productId === product.id &&
+      variant.size === item.size && variant.active && variant.stock >= item.quantity
+      ? { ...item, productName: product.name, unitPrice: variant.price == null ? Number(product.price) : Number(variant.price) }
+      : null;
   });
   if (lines.some((line) => !line)) { res.status(400).json({ error: "A product is no longer available" }); return; }
   res.json(QuoteBundleResponse.parse(calculateBundle(lines.filter(Boolean) as NonNullable<typeof lines[number]>[])));

@@ -17,6 +17,28 @@ export interface StorefrontSummary {
   phone: string;
 }
 
+export interface StorefrontVariant {
+  id: number;
+  sku: string;
+  colorName: string;
+  colorHex: string;
+  size: string;
+  /** @nullable */
+  price: number | null;
+  /** @nullable */
+  compareAtPrice: number | null;
+  stock: number;
+  /** @nullable */
+  chestMm: number | null;
+  /** @nullable */
+  lengthMm: number | null;
+  /** @nullable */
+  shouldersMm: number | null;
+  /** @nullable */
+  sleevesMm: number | null;
+  media: string[];
+}
+
 export interface Product {
   id: number;
   slug: string;
@@ -34,9 +56,12 @@ export interface Product {
   stock: number;
   featured: boolean;
   story: string;
+  variants: StorefrontVariant[];
 }
 
 export interface OrderItemInput {
+  /** @minimum 1 */
+  variantId: number;
   productSlug: string;
   size: string;
   /** @minimum 1 */
@@ -73,6 +98,10 @@ export interface OrderInput {
 export interface OrderItem {
   productName: string;
   productSlug: string;
+  variantId: number;
+  sku: string;
+  colorName: string;
+  colorHex: string;
   size: string;
   quantity: number;
   unitPrice: number;
@@ -433,6 +462,12 @@ export interface AdminVariantInput {
   stock: number;
   /**
      * @minimum 0
+     * @maximum 100000
+     * @nullable
+     */
+  expectedStock?: number | null;
+  /**
+     * @minimum 0
      * @maximum 5000
      * @nullable
      */
@@ -536,10 +571,7 @@ export interface AdminProductInput {
      */
   story: string;
   status: AdminProductInputStatus;
-  /**
-     * @minItems 1
-     * @maxItems 200
-     */
+  /** @minItems 1 */
   variants: AdminVariantInput[];
 }
 
@@ -580,6 +612,14 @@ export interface AdminProduct {
 export type AdminOrder = Order & {
   selected: boolean;
 };
+
+export interface AdminOrderPage {
+  orders: AdminOrder[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
 
 export type BatchOrderStatusInputStatus = typeof BatchOrderStatusInputStatus[keyof typeof BatchOrderStatusInputStatus];
 
@@ -729,7 +769,11 @@ paymentMethod?: GetAdminOrdersPaymentMethod;
 search?: string;
 /**
  * @minimum 1
- * @maximum 250
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
  */
 limit?: number;
 };

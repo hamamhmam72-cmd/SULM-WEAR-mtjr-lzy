@@ -73,6 +73,7 @@ export function AdminCatalog() {
         price: v.price,
         compareAtPrice: v.compareAtPrice,
         stock: v.stock,
+        expectedStock: v.stock,
         chestMm: v.chestMm,
         lengthMm: v.lengthMm,
         shouldersMm: v.shouldersMm,

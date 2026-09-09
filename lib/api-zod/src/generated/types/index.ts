@@ -7,6 +7,7 @@
  */
 
 export * from './adminOrder';
+export * from './adminOrderPage';
 export * from './adminProduct';
 export * from './adminProductInput';
 export * from './adminProductInputStatus';
@@ -66,4 +67,5 @@ export * from './returnRequestStatus';
 export * from './returnRequestType';
 export * from './routeMetric';
 export * from './storefrontSummary';
+export * from './storefrontVariant';
 export * from './unsubscribeResult';

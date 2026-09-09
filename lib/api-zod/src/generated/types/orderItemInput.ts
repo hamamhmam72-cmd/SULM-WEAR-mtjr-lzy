@@ -7,6 +7,8 @@
  */
 
 export interface OrderItemInput {
+  /** @minimum 1 */
+  variantId: number;
   productSlug: string;
   size: string;
   /** @minimum 1 */

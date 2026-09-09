@@ -110,6 +110,7 @@
   @page { margin: 0; size: auto; }
   body { background: white !important; color: black !important; }
   .print-only { display: block !important; }
+  .admin-orders-root > *:not(.print-only) { display: none !important; }
   .no-print, .no-print * { display: none !important; }
   .print-break-after { page-break-after: always; }
   .print-break-before { page-break-before: always; }

@@ -442,16 +442,15 @@ paths:
         - { name: zone, in: query, required: false, schema: { type: string, maxLength: 80 } }
         - { name: paymentMethod, in: query, required: false, schema: { type: string, enum: [cod, prepaid] } }
         - { name: search, in: query, required: false, schema: { type: string, maxLength: 120 } }
-        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 250, default: 100 } }
+        - { name: page, in: query, required: false, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
       responses:
         "200":
           description: Fulfillment orders
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/AdminOrder"
+                $ref: "#/components/schemas/AdminOrderPage"
   /admin/orders/batch-status:
     patch:
       operationId: batchUpdateOrderStatus
@@ -639,6 +638,10 @@ components:
           type: boolean
         story:
           type: string
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/StorefrontVariant"
       required:
         - id
         - slug
@@ -655,9 +658,32 @@ components:
         - stock
         - featured
         - story
+        - variants
+    StorefrontVariant:
+      type: object
+      properties:
+        id: { type: integer }
+        sku: { type: string }
+        colorName: { type: string }
+        colorHex: { type: string }
+        size: { type: string }
+        price: { type: ["number", "null"] }
+        compareAtPrice: { type: ["number", "null"] }
+        stock: { type: integer }
+        chestMm: { type: ["integer", "null"] }
+        lengthMm: { type: ["integer", "null"] }
+        shouldersMm: { type: ["integer", "null"] }
+        sleevesMm: { type: ["integer", "null"] }
+        media:
+          type: array
+          items: { type: string }
+      required: [id, sku, colorName, colorHex, size, price, compareAtPrice, stock, chestMm, lengthMm, shouldersMm, sleevesMm, media]
     OrderItemInput:
       type: object
       properties:
+        variantId:
+          type: integer
+          minimum: 1
         productSlug:
           type: string
         size:
@@ -666,6 +692,7 @@ components:
           type: integer
           minimum: 1
       required:
+        - variantId
         - productSlug
         - size
         - quantity
@@ -711,6 +738,14 @@ components:
           type: string
         productSlug:
           type: string
+        variantId:
+          type: integer
+        sku:
+          type: string
+        colorName:
+          type: string
+        colorHex:
+          type: string
         size:
           type: string
         quantity:
@@ -720,6 +755,10 @@ components:
       required:
         - productName
         - productSlug
+        - variantId
+        - sku
+        - colorName
+        - colorHex
         - size
         - quantity
         - unitPrice
@@ -1105,6 +1144,7 @@ components:
         price: { type: ["number", "null"], minimum: 0, maximum: 100000 }
         compareAtPrice: { type: ["number", "null"], minimum: 0, maximum: 100000 }
         stock: { type: integer, minimum: 0, maximum: 100000 }
+        expectedStock: { type: ["integer", "null"], minimum: 0, maximum: 100000 }
         chestMm: { type: ["integer", "null"], minimum: 0, maximum: 5000 }
         lengthMm: { type: ["integer", "null"], minimum: 0, maximum: 5000 }
         shouldersMm: { type: ["integer", "null"], minimum: 0, maximum: 5000 }
@@ -1145,7 +1185,6 @@ components:
         variants:
           type: array
           minItems: 1
-          maxItems: 200
           items:
             $ref: "#/components/schemas/AdminVariantInput"
       required: [slug, name, nameAr, category, price, compareAtPrice, description, descriptionAr, image, accent, featured, story, status, variants]
@@ -1187,6 +1226,18 @@ components:
           properties:
             selected: { type: boolean }
           required: [selected]
+    AdminOrderPage:
+      type: object
+      properties:
+        orders:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminOrder"
+        total: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
+        totalPages: { type: integer }
+      required: [orders, total, page, pageSize, totalPages]
     BatchOrderStatusInput:
       type: object
       properties:

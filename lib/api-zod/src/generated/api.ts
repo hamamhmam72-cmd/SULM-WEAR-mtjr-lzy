@@ -55,7 +55,22 @@ export const GetProductsResponseItem = zod.object({
   "sizes": zod.array(zod.string()),
   "stock": zod.number().int(),
   "featured": zod.boolean(),
-  "story": zod.string()
+  "story": zod.string(),
+  "variants": zod.array(zod.object({
+  "id": zod.number().int(),
+  "sku": zod.string(),
+  "colorName": zod.string(),
+  "colorHex": zod.string(),
+  "size": zod.string(),
+  "price": zod.number().nullable(),
+  "compareAtPrice": zod.number().nullable(),
+  "stock": zod.number().int(),
+  "chestMm": zod.number().int().nullable(),
+  "lengthMm": zod.number().int().nullable(),
+  "shouldersMm": zod.number().int().nullable(),
+  "sleevesMm": zod.number().int().nullable(),
+  "media": zod.array(zod.string())
+}))
 })
 export const GetProductsResponse = zod.array(GetProductsResponseItem)
 
@@ -82,7 +97,22 @@ export const GetProductResponse = zod.object({
   "sizes": zod.array(zod.string()),
   "stock": zod.number().int(),
   "featured": zod.boolean(),
-  "story": zod.string()
+  "story": zod.string(),
+  "variants": zod.array(zod.object({
+  "id": zod.number().int(),
+  "sku": zod.string(),
+  "colorName": zod.string(),
+  "colorHex": zod.string(),
+  "size": zod.string(),
+  "price": zod.number().nullable(),
+  "compareAtPrice": zod.number().nullable(),
+  "stock": zod.number().int(),
+  "chestMm": zod.number().int().nullable(),
+  "lengthMm": zod.number().int().nullable(),
+  "shouldersMm": zod.number().int().nullable(),
+  "sleevesMm": zod.number().int().nullable(),
+  "media": zod.array(zod.string())
+}))
 })
 
 
@@ -103,6 +133,7 @@ export const createOrderBodyLoyaltyVerificationTokenMax = 1000;
 
 
 
+
 export const CreateOrderBody = zod.object({
   "customerName": zod.string().min(createOrderBodyCustomerNameMin),
   "phone": zod.string().min(createOrderBodyPhoneMin),
@@ -112,6 +143,7 @@ export const CreateOrderBody = zod.object({
   "walletCreditToUse": zod.number().min(createOrderBodyWalletCreditToUseMin).max(createOrderBodyWalletCreditToUseMax).optional(),
   "loyaltyVerificationToken": zod.string().max(createOrderBodyLoyaltyVerificationTokenMax).optional(),
   "items": zod.array(zod.object({
+  "variantId": zod.number().int().min(1),
   "productSlug": zod.string(),
   "size": zod.string(),
   "quantity": zod.number().int().min(1)
@@ -137,6 +169,10 @@ export const CreateOrderResponse = zod.object({
   "items": zod.array(zod.object({
   "productName": zod.string(),
   "productSlug": zod.string(),
+  "variantId": zod.number().int(),
+  "sku": zod.string(),
+  "colorName": zod.string(),
+  "colorHex": zod.string(),
   "size": zod.string(),
   "quantity": zod.number().int(),
   "unitPrice": zod.number()
@@ -178,6 +214,10 @@ export const LookupOrderResponse = zod.object({
   "items": zod.array(zod.object({
   "productName": zod.string(),
   "productSlug": zod.string(),
+  "variantId": zod.number().int(),
+  "sku": zod.string(),
+  "colorName": zod.string(),
+  "colorHex": zod.string(),
   "size": zod.string(),
   "quantity": zod.number().int(),
   "unitPrice": zod.number()
@@ -366,12 +406,14 @@ export const LookupReturnRequestsResponse = zod.array(LookupReturnRequestsRespon
  * @summary Calculate cart and bundle discounts
  */
 
+
 export const quoteBundleBodyItemsMax = 20;
 
 
 
 export const QuoteBundleBody = zod.object({
   "items": zod.array(zod.object({
+  "variantId": zod.number().int().min(1),
   "productSlug": zod.string(),
   "size": zod.string(),
   "quantity": zod.number().int().min(1)
@@ -393,6 +435,7 @@ export const subscribeCartReminderBodyPhoneMin = 8;
 export const subscribeCartReminderBodyPhoneMax = 24;
 
 
+
 export const subscribeCartReminderBodyItemsMax = 20;
 
 
@@ -402,6 +445,7 @@ export const SubscribeCartReminderBody = zod.object({
   "consent": zod.literal(true),
   "channel": zod.enum(['in_app']),
   "items": zod.array(zod.object({
+  "variantId": zod.number().int().min(1),
   "productSlug": zod.string(),
   "size": zod.string(),
   "quantity": zod.number().int().min(1)
@@ -488,8 +532,10 @@ export const getAdminOrdersQueryZoneMax = 80;
 
 export const getAdminOrdersQuerySearchMax = 120;
 
-export const getAdminOrdersQueryLimitDefault = 100;
-export const getAdminOrdersQueryLimitMax = 250;
+export const getAdminOrdersQueryPageDefault = 1;
+
+export const getAdminOrdersQueryLimitDefault = 50;
+export const getAdminOrdersQueryLimitMax = 100;
 
 
 
@@ -499,10 +545,12 @@ export const GetAdminOrdersQueryParams = zod.object({
   "zone": zod.coerce.string().max(getAdminOrdersQueryZoneMax).optional(),
   "paymentMethod": zod.enum(['cod', 'prepaid']).optional(),
   "search": zod.coerce.string().max(getAdminOrdersQuerySearchMax).optional(),
+  "page": zod.coerce.number().int().min(1).default(getAdminOrdersQueryPageDefault),
   "limit": zod.coerce.number().int().min(1).max(getAdminOrdersQueryLimitMax).default(getAdminOrdersQueryLimitDefault)
 })
 
-export const GetAdminOrdersResponseItem = zod.object({
+export const GetAdminOrdersResponse = zod.object({
+  "orders": zod.array(zod.object({
   "id": zod.number().int(),
   "orderNumber": zod.string(),
   "customerName": zod.string(),
@@ -521,6 +569,10 @@ export const GetAdminOrdersResponseItem = zod.object({
   "items": zod.array(zod.object({
   "productName": zod.string(),
   "productSlug": zod.string(),
+  "variantId": zod.number().int(),
+  "sku": zod.string(),
+  "colorName": zod.string(),
+  "colorHex": zod.string(),
   "size": zod.string(),
   "quantity": zod.number().int(),
   "unitPrice": zod.number()
@@ -533,8 +585,12 @@ export const GetAdminOrdersResponseItem = zod.object({
   "deliveredAt": zod.string().nullable()
 }).and(zod.object({
   "selected": zod.boolean()
-}))
-export const GetAdminOrdersResponse = zod.array(GetAdminOrdersResponseItem)
+}))),
+  "total": zod.number().int(),
+  "page": zod.number().int(),
+  "pageSize": zod.number().int(),
+  "totalPages": zod.number().int()
+})
 
 
 /**
@@ -576,6 +632,10 @@ export const BatchUpdateOrderStatusResponse = zod.object({
   "items": zod.array(zod.object({
   "productName": zod.string(),
   "productSlug": zod.string(),
+  "variantId": zod.number().int(),
+  "sku": zod.string(),
+  "colorName": zod.string(),
+  "colorHex": zod.string(),
   "size": zod.string(),
   "quantity": zod.number().int(),
   "unitPrice": zod.number()
@@ -617,6 +677,9 @@ export const getAdminProductsResponseVariantsItemOneCompareAtPriceMax = 100000;
 
 export const getAdminProductsResponseVariantsItemOneStockMin = 0;
 export const getAdminProductsResponseVariantsItemOneStockMax = 100000;
+
+export const getAdminProductsResponseVariantsItemOneExpectedStockMin = 0;
+export const getAdminProductsResponseVariantsItemOneExpectedStockMax = 100000;
 
 export const getAdminProductsResponseVariantsItemOneChestMmMin = 0;
 export const getAdminProductsResponseVariantsItemOneChestMmMax = 5000;
@@ -662,6 +725,7 @@ export const GetAdminProductsResponseItem = zod.object({
   "price": zod.number().min(getAdminProductsResponseVariantsItemOnePriceMin).max(getAdminProductsResponseVariantsItemOnePriceMax).nullable(),
   "compareAtPrice": zod.number().min(getAdminProductsResponseVariantsItemOneCompareAtPriceMin).max(getAdminProductsResponseVariantsItemOneCompareAtPriceMax).nullable(),
   "stock": zod.number().int().min(getAdminProductsResponseVariantsItemOneStockMin).max(getAdminProductsResponseVariantsItemOneStockMax),
+  "expectedStock": zod.number().int().min(getAdminProductsResponseVariantsItemOneExpectedStockMin).max(getAdminProductsResponseVariantsItemOneExpectedStockMax).nullish(),
   "chestMm": zod.number().int().min(getAdminProductsResponseVariantsItemOneChestMmMin).max(getAdminProductsResponseVariantsItemOneChestMmMax).nullable(),
   "lengthMm": zod.number().int().min(getAdminProductsResponseVariantsItemOneLengthMmMin).max(getAdminProductsResponseVariantsItemOneLengthMmMax).nullable(),
   "shouldersMm": zod.number().int().min(getAdminProductsResponseVariantsItemOneShouldersMmMin).max(getAdminProductsResponseVariantsItemOneShouldersMmMax).nullable(),
@@ -731,6 +795,9 @@ export const createAdminProductBodyVariantsItemCompareAtPriceMax = 100000;
 export const createAdminProductBodyVariantsItemStockMin = 0;
 export const createAdminProductBodyVariantsItemStockMax = 100000;
 
+export const createAdminProductBodyVariantsItemExpectedStockMin = 0;
+export const createAdminProductBodyVariantsItemExpectedStockMax = 100000;
+
 export const createAdminProductBodyVariantsItemChestMmMin = 0;
 export const createAdminProductBodyVariantsItemChestMmMax = 5000;
 
@@ -747,7 +814,6 @@ export const createAdminProductBodyVariantsItemMediaItemMax = 1000;
 
 export const createAdminProductBodyVariantsItemMediaMax = 12;
 
-export const createAdminProductBodyVariantsMax = 200;
 
 
 
@@ -774,13 +840,14 @@ export const CreateAdminProductBody = zod.object({
   "price": zod.number().min(createAdminProductBodyVariantsItemPriceMin).max(createAdminProductBodyVariantsItemPriceMax).nullable(),
   "compareAtPrice": zod.number().min(createAdminProductBodyVariantsItemCompareAtPriceMin).max(createAdminProductBodyVariantsItemCompareAtPriceMax).nullable(),
   "stock": zod.number().int().min(createAdminProductBodyVariantsItemStockMin).max(createAdminProductBodyVariantsItemStockMax),
+  "expectedStock": zod.number().int().min(createAdminProductBodyVariantsItemExpectedStockMin).max(createAdminProductBodyVariantsItemExpectedStockMax).nullish(),
   "chestMm": zod.number().int().min(createAdminProductBodyVariantsItemChestMmMin).max(createAdminProductBodyVariantsItemChestMmMax).nullable(),
   "lengthMm": zod.number().int().min(createAdminProductBodyVariantsItemLengthMmMin).max(createAdminProductBodyVariantsItemLengthMmMax).nullable(),
   "shouldersMm": zod.number().int().min(createAdminProductBodyVariantsItemShouldersMmMin).max(createAdminProductBodyVariantsItemShouldersMmMax).nullable(),
   "sleevesMm": zod.number().int().min(createAdminProductBodyVariantsItemSleevesMmMin).max(createAdminProductBodyVariantsItemSleevesMmMax).nullable(),
   "media": zod.array(zod.string().max(createAdminProductBodyVariantsItemMediaItemMax)).max(createAdminProductBodyVariantsItemMediaMax),
   "active": zod.boolean()
-})).min(1).max(createAdminProductBodyVariantsMax)
+})).min(1)
 })
 
 export const createAdminProductResponseVariantsItemOneSkuMin = 2;
@@ -799,6 +866,9 @@ export const createAdminProductResponseVariantsItemOneCompareAtPriceMax = 100000
 
 export const createAdminProductResponseVariantsItemOneStockMin = 0;
 export const createAdminProductResponseVariantsItemOneStockMax = 100000;
+
+export const createAdminProductResponseVariantsItemOneExpectedStockMin = 0;
+export const createAdminProductResponseVariantsItemOneExpectedStockMax = 100000;
 
 export const createAdminProductResponseVariantsItemOneChestMmMin = 0;
 export const createAdminProductResponseVariantsItemOneChestMmMax = 5000;
@@ -844,6 +914,7 @@ export const CreateAdminProductResponse = zod.object({
   "price": zod.number().min(createAdminProductResponseVariantsItemOnePriceMin).max(createAdminProductResponseVariantsItemOnePriceMax).nullable(),
   "compareAtPrice": zod.number().min(createAdminProductResponseVariantsItemOneCompareAtPriceMin).max(createAdminProductResponseVariantsItemOneCompareAtPriceMax).nullable(),
   "stock": zod.number().int().min(createAdminProductResponseVariantsItemOneStockMin).max(createAdminProductResponseVariantsItemOneStockMax),
+  "expectedStock": zod.number().int().min(createAdminProductResponseVariantsItemOneExpectedStockMin).max(createAdminProductResponseVariantsItemOneExpectedStockMax).nullish(),
   "chestMm": zod.number().int().min(createAdminProductResponseVariantsItemOneChestMmMin).max(createAdminProductResponseVariantsItemOneChestMmMax).nullable(),
   "lengthMm": zod.number().int().min(createAdminProductResponseVariantsItemOneLengthMmMin).max(createAdminProductResponseVariantsItemOneLengthMmMax).nullable(),
   "shouldersMm": zod.number().int().min(createAdminProductResponseVariantsItemOneShouldersMmMin).max(createAdminProductResponseVariantsItemOneShouldersMmMax).nullable(),
@@ -919,6 +990,9 @@ export const updateAdminProductBodyOneVariantsItemCompareAtPriceMax = 100000;
 export const updateAdminProductBodyOneVariantsItemStockMin = 0;
 export const updateAdminProductBodyOneVariantsItemStockMax = 100000;
 
+export const updateAdminProductBodyOneVariantsItemExpectedStockMin = 0;
+export const updateAdminProductBodyOneVariantsItemExpectedStockMax = 100000;
+
 export const updateAdminProductBodyOneVariantsItemChestMmMin = 0;
 export const updateAdminProductBodyOneVariantsItemChestMmMax = 5000;
 
@@ -935,7 +1009,6 @@ export const updateAdminProductBodyOneVariantsItemMediaItemMax = 1000;
 
 export const updateAdminProductBodyOneVariantsItemMediaMax = 12;
 
-export const updateAdminProductBodyOneVariantsMax = 200;
 
 
 
@@ -962,13 +1035,14 @@ export const UpdateAdminProductBody = zod.object({
   "price": zod.number().min(updateAdminProductBodyOneVariantsItemPriceMin).max(updateAdminProductBodyOneVariantsItemPriceMax).nullable(),
   "compareAtPrice": zod.number().min(updateAdminProductBodyOneVariantsItemCompareAtPriceMin).max(updateAdminProductBodyOneVariantsItemCompareAtPriceMax).nullable(),
   "stock": zod.number().int().min(updateAdminProductBodyOneVariantsItemStockMin).max(updateAdminProductBodyOneVariantsItemStockMax),
+  "expectedStock": zod.number().int().min(updateAdminProductBodyOneVariantsItemExpectedStockMin).max(updateAdminProductBodyOneVariantsItemExpectedStockMax).nullish(),
   "chestMm": zod.number().int().min(updateAdminProductBodyOneVariantsItemChestMmMin).max(updateAdminProductBodyOneVariantsItemChestMmMax).nullable(),
   "lengthMm": zod.number().int().min(updateAdminProductBodyOneVariantsItemLengthMmMin).max(updateAdminProductBodyOneVariantsItemLengthMmMax).nullable(),
   "shouldersMm": zod.number().int().min(updateAdminProductBodyOneVariantsItemShouldersMmMin).max(updateAdminProductBodyOneVariantsItemShouldersMmMax).nullable(),
   "sleevesMm": zod.number().int().min(updateAdminProductBodyOneVariantsItemSleevesMmMin).max(updateAdminProductBodyOneVariantsItemSleevesMmMax).nullable(),
   "media": zod.array(zod.string().max(updateAdminProductBodyOneVariantsItemMediaItemMax)).max(updateAdminProductBodyOneVariantsItemMediaMax),
   "active": zod.boolean()
-})).min(1).max(updateAdminProductBodyOneVariantsMax)
+})).min(1)
 })
 
 export const updateAdminProductResponseVariantsItemOneSkuMin = 2;
@@ -987,6 +1061,9 @@ export const updateAdminProductResponseVariantsItemOneCompareAtPriceMax = 100000
 
 export const updateAdminProductResponseVariantsItemOneStockMin = 0;
 export const updateAdminProductResponseVariantsItemOneStockMax = 100000;
+
+export const updateAdminProductResponseVariantsItemOneExpectedStockMin = 0;
+export const updateAdminProductResponseVariantsItemOneExpectedStockMax = 100000;
 
 export const updateAdminProductResponseVariantsItemOneChestMmMin = 0;
 export const updateAdminProductResponseVariantsItemOneChestMmMax = 5000;
@@ -1032,6 +1109,7 @@ export const UpdateAdminProductResponse = zod.object({
   "price": zod.number().min(updateAdminProductResponseVariantsItemOnePriceMin).max(updateAdminProductResponseVariantsItemOnePriceMax).nullable(),
   "compareAtPrice": zod.number().min(updateAdminProductResponseVariantsItemOneCompareAtPriceMin).max(updateAdminProductResponseVariantsItemOneCompareAtPriceMax).nullable(),
   "stock": zod.number().int().min(updateAdminProductResponseVariantsItemOneStockMin).max(updateAdminProductResponseVariantsItemOneStockMax),
+  "expectedStock": zod.number().int().min(updateAdminProductResponseVariantsItemOneExpectedStockMin).max(updateAdminProductResponseVariantsItemOneExpectedStockMax).nullish(),
   "chestMm": zod.number().int().min(updateAdminProductResponseVariantsItemOneChestMmMin).max(updateAdminProductResponseVariantsItemOneChestMmMax).nullable(),
   "lengthMm": zod.number().int().min(updateAdminProductResponseVariantsItemOneLengthMmMin).max(updateAdminProductResponseVariantsItemOneLengthMmMax).nullable(),
   "shouldersMm": zod.number().int().min(updateAdminProductResponseVariantsItemOneShouldersMmMin).max(updateAdminProductResponseVariantsItemOneShouldersMmMax).nullable(),

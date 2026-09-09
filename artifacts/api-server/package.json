@@ -8,7 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:retention": "node ./scripts/test-retention.mjs"
+    "test:retention": "pnpm --filter @workspace/scripts exec tsx ../artifacts/api-server/scripts/test-retention.mjs",
+    "test:fulfillment": "pnpm --filter @workspace/scripts exec tsx ../artifacts/api-server/scripts/test-fulfillment.ts"
   },
   "dependencies": {
     "@clerk/express": "2.1.66",

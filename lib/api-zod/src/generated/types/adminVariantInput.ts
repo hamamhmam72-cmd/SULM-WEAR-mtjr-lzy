@@ -45,6 +45,12 @@ export interface AdminVariantInput {
   stock: number;
   /**
      * @minimum 0
+     * @maximum 100000
+     * @nullable
+     */
+  expectedStock?: number | null;
+  /**
+     * @minimum 0
      * @maximum 5000
      * @nullable
      */

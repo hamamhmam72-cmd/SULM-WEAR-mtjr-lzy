@@ -1,4 +1,4 @@
-# [Project name]
+# SULM WEAR
 
 _Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
 
@@ -10,6 +10,8 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
+- Required admin auth: `CATALOG_ADMIN_EMAILS` — comma-separated Clerk account emails allowed to access `/admin`
+- Required Clerk configuration: `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `VITE_CLERK_PUBLISHABLE_KEY`
 
 ## Stack
 
@@ -29,6 +31,8 @@ _Populate as you build — short repo map plus pointers to the source-of-truth f
 _Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
 
 ## Product
+
+SULM WEAR is a bilingual Jordanian fashion storefront with variant-aware checkout, loyalty and returns, plus a Clerk-protected catalog and fulfillment operations portal.
 
 _Describe the high-level user-facing capabilities of this app once they exist._
 

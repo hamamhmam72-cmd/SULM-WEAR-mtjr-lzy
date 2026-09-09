@@ -20,7 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
-  AdminOrder,
+  AdminOrderPage,
   AdminProduct,
   AdminProductInput,
   AdminProductUpdateInput,
@@ -1371,9 +1371,9 @@ export const getGetAdminOrdersUrl = (params?: GetAdminOrdersParams,) => {
 /**
  * @summary List and filter fulfillment orders
  */
-export const getAdminOrders = async (params?: GetAdminOrdersParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminOrder[]> => {
+export const getAdminOrders = async (params?: GetAdminOrdersParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminOrderPage> => {
 
-  return customFetch<AdminOrder[]>(getGetAdminOrdersUrl(params),
+  return customFetch<AdminOrderPage>(getGetAdminOrdersUrl(params),
   {
     ...options,
     method: 'GET'

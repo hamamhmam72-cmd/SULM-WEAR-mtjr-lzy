@@ -193,7 +193,7 @@ function HomeRedirect({ onAdd }: { onAdd: (product: Product) => void }) {
   );
 }
 
-type CartItem = { product: Product; size: string; quantity: number };
+type CartItem = { product: Product; variant: import("@workspace/api-client-react").StorefrontVariant; quantity: number };
 
 const money = (value: number) => `${value.toFixed(2)} JOD`;
 
@@ -411,15 +411,49 @@ function StateBlock({ title, body, action, onAction }: { title: string; body: st
   return <div className="flex min-h-[260px] flex-col items-center justify-center border border-dashed border-border px-6 text-center"><CircleHelp size={24} strokeWidth={1} className="mb-5 text-accent" /><h3 className="display text-2xl font-semibold">{title}</h3><p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">{body}</p><button onClick={onAction} className="mt-6 border-b border-foreground pb-1 text-[10px] font-bold uppercase tracking-[.17em] hover:border-accent hover:text-accent" data-testid="button-state-action">{action}</button></div>;
 }
 
-function ProductPage({ onAdd }: { onAdd: (product: Product, size?: string) => void }) {
+function ProductPage({ onAdd }: { onAdd: (product: Product, variant?: import("@workspace/api-client-react").StorefrontVariant) => void }) {
   const { slug = '' } = useParams<{ slug: string }>();
   const query = useGetProduct(slug, { query: { queryKey: getGetProductQueryKey(slug) } });
-  const [size, setSize] = useState('');
+  
+  const product = query.data;
+  const [selectedColor, setSelectedColor] = useState('');
+  const [selectedSize, setSelectedSize] = useState('');
+  
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
   const [fit, setFit] = useState('');
-  const product = query.data;
-  useEffect(() => { if (product && !size) setSize(product.sizes[0] ?? ''); }, [product, size]);
+
+  const availableColors = useMemo(() => {
+    if (!product) return [];
+    const colors = new Map<string, string>();
+    product.variants.forEach(v => {
+      if (!colors.has(v.colorName)) colors.set(v.colorName, v.colorHex);
+    });
+    return Array.from(colors.entries()).map(([name, hex]) => ({ name, hex }));
+  }, [product]);
+
+  const sizesForColor = useMemo(() => {
+    if (!product || !selectedColor) return [];
+    return product.variants.filter(v => v.colorName === selectedColor);
+  }, [product, selectedColor]);
+
+  useEffect(() => {
+    if (availableColors.length > 0 && !availableColors.some(c => c.name === selectedColor)) {
+      setSelectedColor(availableColors[0].name);
+    }
+  }, [availableColors, selectedColor]);
+
+  useEffect(() => {
+    if (sizesForColor.length > 0 && !sizesForColor.some(v => v.size === selectedSize)) {
+      const firstInStock = sizesForColor.find(v => v.stock > 0);
+      setSelectedSize(firstInStock ? firstInStock.size : sizesForColor[0].size);
+    }
+  }, [sizesForColor, selectedSize]);
+
+  const selectedVariant = sizesForColor.find(v => v.size === selectedSize);
+  const effectivePrice = selectedVariant?.price ?? product?.price ?? 0;
+  const effectiveCompareAt = selectedVariant?.compareAtPrice ?? product?.compareAtPrice;
+
   const calculateFit = () => {
     const h = Number(height); const w = Number(weight);
     if (!h || !w) return;
@@ -427,8 +461,10 @@ function ProductPage({ onAdd }: { onAdd: (product: Product, size?: string) => vo
     const index = bmi < 20 ? 0 : bmi < 24 ? 1 : bmi < 28 ? 2 : 3;
     setFit(product?.sizes[Math.min(index, (product?.sizes.length ?? 1) - 1)] ?? 'M');
   };
+
   if (query.isLoading) return <div className="mx-auto max-w-[1440px] px-5 py-20 sm:px-8 lg:px-12"><SkeletonGrid /></div>;
   if (query.isError || !product) return <div className="mx-auto max-w-[680px] px-5 py-32 text-center sm:px-8"><StateBlock title="This piece is off the rail." body="The product may have moved on, or the link is not quite right." action="Back to the edit" onAction={() => window.history.back()} /></div>;
+  
   return (
     <main className="mx-auto max-w-[1440px] px-5 py-8 sm:px-8 lg:px-12 lg:py-14">
       <Link href="/" className="mb-8 inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.17em] text-muted-foreground hover:text-foreground" data-testid="link-back-shop"><ArrowLeft size={14} /> Back to the edit</Link>
@@ -438,12 +474,43 @@ function ProductPage({ onAdd }: { onAdd: (product: Product, size?: string) => vo
           <p className="text-[10px] font-bold uppercase tracking-[.22em] text-accent">{product.category} / {String(product.id).padStart(2, '0')}</p>
           <h1 className="display mt-5 text-5xl font-bold leading-[.9] tracking-[-.07em] sm:text-7xl" data-testid="text-product-title">{product.name}</h1>
           <p className="font-arabic mt-4 text-sm text-muted-foreground" dir="rtl">{product.nameAr}</p>
-          <div className="mt-7 flex items-baseline gap-3"><span className="font-mono text-lg" data-testid="text-product-price">{money(product.price)}</span>{product.compareAtPrice && <span className="font-mono text-sm text-muted-foreground line-through">{money(product.compareAtPrice)}</span>}</div>
+          <div className="mt-7 flex items-baseline gap-3"><span className="font-mono text-lg" data-testid="text-product-price">{money(effectivePrice)}</span>{effectiveCompareAt && <span className="font-mono text-sm text-muted-foreground line-through">{money(effectiveCompareAt)}</span>}</div>
           <div className="my-9 h-px bg-border" />
           <p className="max-w-lg text-sm leading-7 text-muted-foreground">{product.description}</p>
           <p className="font-arabic mt-4 max-w-lg text-sm leading-7 text-muted-foreground" dir="rtl">{product.descriptionAr}</p>
-          <div className="mt-9"><div className="mb-3 flex items-center justify-between"><span className="text-[10px] font-bold uppercase tracking-[.17em]">Select size</span><span className="font-mono text-[10px] text-muted-foreground">{product.stock} remaining</span></div><div className="grid grid-cols-4 gap-2">{product.sizes.map((item) => <button key={item} onClick={() => setSize(item)} className={`h-12 border text-xs font-semibold transition-colors ${size === item ? 'border-foreground bg-foreground text-background' : 'border-border hover:border-foreground'}`} data-testid={`button-size-${item}`}>{item}</button>)}</div></div>
-          <button disabled={!size || product.stock < 1} onClick={() => onAdd(product, size)} className="mt-5 flex h-14 items-center justify-center gap-3 bg-foreground text-[11px] font-bold uppercase tracking-[.18em] text-background transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40" data-testid="button-add-to-bag">{product.stock < 1 ? 'Sold out' : 'Add to bag'} <ArrowRight size={16} /></button>
+          
+          <div className="mt-9">
+            <div className="mb-3 flex items-center justify-between"><span className="text-[10px] font-bold uppercase tracking-[.17em]">Color / {selectedColor}</span></div>
+            <div className="flex flex-wrap gap-3">
+              {availableColors.map(c => (
+                <button key={c.name} onClick={() => setSelectedColor(c.name)} className={`h-10 w-10 rounded-full border-2 transition-all ${selectedColor === c.name ? 'border-foreground' : 'border-transparent hover:scale-110'}`} aria-label={`Select color ${c.name}`} data-testid={`button-color-${c.name.toLowerCase().replace(/\s/g, '-')}`}>
+                  <span className="block h-full w-full rounded-full border border-black/10 dark:border-white/10" style={{ backgroundColor: c.hex }} />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-9">
+            <div className="mb-3 flex items-center justify-between"><span className="text-[10px] font-bold uppercase tracking-[.17em]">Select size</span>{selectedVariant && <span className="font-mono text-[10px] text-muted-foreground">{selectedVariant.stock} remaining</span>}</div>
+            <div className="grid grid-cols-4 gap-2">
+              {sizesForColor.map((v) => (
+                <button key={v.size} onClick={() => setSelectedSize(v.size)} disabled={v.stock < 1} className={`h-12 border text-xs font-semibold transition-colors ${selectedSize === v.size ? 'border-foreground bg-foreground text-background' : 'border-border hover:border-foreground'} ${v.stock < 1 ? 'opacity-40 cursor-not-allowed' : ''}`} data-testid={`button-size-${v.size}`}>{v.size}</button>
+              ))}
+            </div>
+          </div>
+
+          {selectedVariant && (selectedVariant.chestMm || selectedVariant.lengthMm || selectedVariant.shouldersMm || selectedVariant.sleevesMm || selectedVariant.sku) && (
+            <div className="mt-5 flex flex-wrap gap-4 text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
+              {selectedVariant.sku && <span>SKU: {selectedVariant.sku}</span>}
+              {selectedVariant.chestMm != null && <span>Chest {selectedVariant.chestMm}</span>}
+              {selectedVariant.lengthMm != null && <span>Length {selectedVariant.lengthMm}</span>}
+              {selectedVariant.shouldersMm != null && <span>Shoulders {selectedVariant.shouldersMm}</span>}
+              {selectedVariant.sleevesMm != null && <span>Sleeves {selectedVariant.sleevesMm}</span>}
+            </div>
+          )}
+
+          <button disabled={!selectedVariant || selectedVariant.stock < 1} onClick={() => selectedVariant && onAdd(product, selectedVariant)} className="mt-5 flex h-14 items-center justify-center gap-3 bg-foreground text-[11px] font-bold uppercase tracking-[.18em] text-background transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40" data-testid="button-add-to-bag">{!selectedVariant || selectedVariant.stock < 1 ? 'Sold out' : 'Add to bag'} <ArrowRight size={16} /></button>
+          
           <div className="mt-10 grid gap-4 border-y border-border py-5 text-sm"><p className="flex items-center gap-3"><Truck size={17} strokeWidth={1.2} className="text-accent" /> Delivery across Jordan in 2–4 days</p><p className="flex items-center gap-3"><RotateCcw size={17} strokeWidth={1.2} className="text-accent" /> Easy exchanges within 7 days</p></div>
           <div className="mt-10 border border-border/80 p-5"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-accent">Smart fit / quick guide</p><h2 className="mt-2 text-base font-semibold">Find your starting point</h2></div><CircleHelp size={18} strokeWidth={1.2} className="text-muted-foreground" /></div><div className="mt-5 grid grid-cols-2 gap-3"><label className="text-[10px] font-bold uppercase tracking-[.13em] text-muted-foreground">Height (cm)<input value={height} onChange={(event) => setHeight(event.target.value)} type="number" placeholder="174" className="mt-2 h-10 w-full border border-border bg-transparent px-3 text-sm outline-none focus:border-accent" data-testid="input-fit-height" /></label><label className="text-[10px] font-bold uppercase tracking-[.13em] text-muted-foreground">Weight (kg)<input value={weight} onChange={(event) => setWeight(event.target.value)} type="number" placeholder="72" className="mt-2 h-10 w-full border border-border bg-transparent px-3 text-sm outline-none focus:border-accent" data-testid="input-fit-weight" /></label></div><button onClick={calculateFit} className="mt-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[.17em] hover:text-accent" data-testid="button-calculate-fit">Calculate fit <ChevronRight size={14} /></button>{fit && <p className="mt-4 border-t border-border pt-4 text-sm">Your starting point: <strong className="text-accent">{fit}</strong>. Prefer a looser silhouette? Go one size up.</p>}</div>
           <details className="group border-b border-border py-5"><summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold">The product story <ChevronDown size={16} className="transition-transform group-open:rotate-180" /></summary><p className="mt-4 text-sm leading-7 text-muted-foreground">{product.story}</p></details>
@@ -454,15 +521,14 @@ function ProductPage({ onAdd }: { onAdd: (product: Product, size?: string) => vo
 }
 
 
+
 function CartDrawer({ items, open, onClose, onChange }: { items: CartItem[]; open: boolean; onClose: () => void; onChange: (items: CartItem[]) => void }) {
   const quote = useQuoteBundle();
   useEffect(() => {
     if (open && items.length > 0) {
-      quote.mutate({ data: { items: items.map(item => ({ productSlug: item.product.slug, size: item.size, quantity: item.quantity })) } });
+      quote.mutate({ data: { items: items.map(item => ({ productSlug: item.product.slug, variantId: item.variant.id, size: item.variant.size, quantity: item.quantity })) } });
     }
-  }, [open, items.map(i => i.product.slug + i.size + i.quantity).join(',')]);
-
-
+  }, [open, items.map(i => i.product.slug + i.variant.size + i.quantity).join(',')]);
 
   const [phone, setPhone] = useState('');
   const [consent, setConsent] = useState(false);
@@ -479,7 +545,7 @@ function CartDrawer({ items, open, onClose, onChange }: { items: CartItem[]; ope
   const handleRemind = (e: FormEvent) => {
     e.preventDefault();
     if (!phone || !consent) return;
-    subscribe.mutate({ data: { phone, consent: true, channel: 'in_app', items: items.map(item => ({ productSlug: item.product.slug, size: item.size, quantity: item.quantity })) } }, {
+    subscribe.mutate({ data: { phone, consent: true, channel: 'in_app', items: items.map(item => ({ productSlug: item.product.slug, variantId: item.variant.id, size: item.variant.size, quantity: item.quantity })) } }, {
       onSuccess: (data) => {
         setReminderToken(data.reminderToken);
         localStorage.setItem('sulm-cart-reminder', data.reminderToken);
@@ -499,9 +565,7 @@ function CartDrawer({ items, open, onClose, onChange }: { items: CartItem[]; ope
     });
   };
 
-
-
-  const total = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const total = items.reduce((sum, item) => sum + (item.variant.price ?? item.product.price) * item.quantity, 0);
   const quoteData = quote.data;
   const displayTotal = quoteData?.total ?? total;
   const discount = quoteData?.discount ?? 0;
@@ -531,13 +595,13 @@ function CartDrawer({ items, open, onClose, onChange }: { items: CartItem[]; ope
           <>
             <div className="flex-1 overflow-auto px-6 py-4">
               {items.map((item, index) => (
-                <div className="flex gap-4 border-b border-border py-5" key={`${item.product.id}-${item.size}`}>
+                <div className="flex gap-4 border-b border-border py-5" key={`${item.product.id}-${item.variant.id}`}>
                   <div className="h-24 w-20 shrink-0"><ProductVisual product={item.product} /></div>
                   <div className="min-w-0 flex-1">
                     <div className="flex justify-between gap-3">
                       <div>
                         <p className="truncate text-sm font-semibold">{item.product.name}</p>
-                        <p className="mt-1 text-[10px] uppercase tracking-[.15em] text-muted-foreground">Size {item.size}</p>
+                        <p className="mt-1 text-[10px] uppercase tracking-[.15em] text-muted-foreground">{item.variant.colorName} • Size {item.variant.size} • {item.variant.sku}</p>
                       </div>
                       <button className="text-muted-foreground hover:text-destructive" onClick={() => updateQty(index, -item.quantity)} aria-label={`Remove ${item.product.name}`} data-testid={`button-remove-cart-${item.product.id}`}><X size={14} /></button>
                     </div>
@@ -547,52 +611,38 @@ function CartDrawer({ items, open, onClose, onChange }: { items: CartItem[]; ope
                         <span className="w-7 text-center font-mono text-[11px]">{item.quantity}</span>
                         <button className="grid h-7 w-7 place-items-center hover:bg-muted" onClick={() => updateQty(index, 1)} data-testid={`button-increase-cart-${item.product.id}`}><Plus size={12} /></button>
                       </div>
-                      <p className="font-mono text-xs">{money(item.product.price * item.quantity)}</p>
+                      <p className="font-mono text-xs">{money((item.variant.price ?? item.product.price) * item.quantity)}</p>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
             
-            <div className="border-t border-border px-6 py-6 bg-muted/20">
-              {!reminderToken ? (
-                <form onSubmit={handleRemind} className="mb-6">
+            <div className="border-t border-border bg-card p-6">
+              {items.length > 0 && !reminderToken && (
+                <form onSubmit={handleRemind} className="mb-6 rounded border border-border bg-background p-4">
+                  <p className="mb-2 text-xs font-semibold">Save your bag for later</p>
                   <div className="flex gap-2">
-                    <div className="flex-1">
-                      <label className="sr-only">Phone for reminder</label>
-                      <input required minLength={8} type="text" placeholder="Phone to save cart" value={phone} onChange={e => setPhone(e.target.value)} className="h-9 w-full border-b border-border bg-transparent text-xs outline-none focus:border-accent" data-testid="input-cart-reminder-phone" />
-                    </div>
-                    <button type="submit" disabled={subscribe.isPending || !consent} className="h-9 px-3 bg-foreground text-background text-[9px] font-bold uppercase tracking-[.1em] whitespace-nowrap disabled:opacity-50" data-testid="button-cart-reminder-submit">{subscribe.isPending ? 'Saving...' : 'Save for later'}</button>
+                    <input type="tel" placeholder="WhatsApp number" required value={phone} onChange={e => setPhone(e.target.value)} className="h-8 flex-1 border-b border-border bg-transparent text-xs outline-none focus:border-accent" />
+                    <button disabled={subscribe.isPending} type="submit" className="h-8 bg-foreground px-3 text-[10px] font-bold uppercase tracking-[.1em] text-background hover:bg-accent disabled:opacity-50">Save</button>
                   </div>
-                  <label className="mt-3 flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
-                    <input type="checkbox" className="mt-1" checked={consent} onChange={(e) => setConsent(e.target.checked)} data-testid="checkbox-cart-reminder-consent" />
-                    <span>I agree to receive a gentle in-app reminder if I leave these pieces behind.</span>
+                  <label className="mt-3 flex items-center gap-2 text-[10px] text-muted-foreground">
+                    <input type="checkbox" required checked={consent} onChange={e => setConsent(e.target.checked)} className="h-3 w-3" />
+                    I agree to receive a reminder message.
                   </label>
                 </form>
-              ) : (
-                <div className="mb-6 text-xs text-green-600 flex items-center justify-between">
-                  <span className="flex items-center gap-2"><Check size={14} /> Cart saved. We will remind you later.</span>
-                  <button onClick={handleUnsubscribe} disabled={unsubscribe.isPending} className="text-muted-foreground hover:text-foreground underline decoration-muted-foreground/30 underline-offset-2" data-testid="button-cart-reminder-unsubscribe">{unsubscribe.isPending ? 'Removing...' : 'Unsubscribe'}</button>
+              )}
+              {items.length > 0 && reminderToken && (
+                <div className="mb-6 flex items-center justify-between rounded border border-border bg-background p-4">
+                  <p className="text-xs text-muted-foreground">We'll remind you about this bag.</p>
+                  <button onClick={handleUnsubscribe} disabled={unsubscribe.isPending} className="text-[10px] font-bold uppercase tracking-[.1em] text-destructive hover:underline">Cancel</button>
                 </div>
               )}
-
-              <div className="space-y-2 mb-5 text-sm">
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span>Subtotal</span>
-                  <span className="font-mono">{money(total)}</span>
-                </div>
-                {discount > 0 && (
-                  <div className="flex items-center justify-between text-accent">
-                    <span>Bundle Savings {quoteData?.appliedRule ? `(${quoteData.appliedRule})` : ''}</span>
-                    <span className="font-mono">-{money(discount)}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between font-semibold pt-2 border-t border-border">
-                  <span className="text-xs uppercase tracking-[.15em]">Total</span>
-                  <span className="font-mono text-base">{money(displayTotal)}</span>
-                </div>
+              <div className="mb-6 space-y-2">
+                {discount > 0 && <div className="flex justify-between text-sm text-accent"><p>Bundle savings</p><p>−{money(discount)}</p></div>}
+                <div className="flex justify-between text-base font-semibold"><p>Estimated total</p><p>{money(displayTotal)}</p></div>
               </div>
-              <Link href="/checkout" onClick={onClose} className="flex h-13 items-center justify-center gap-3 bg-foreground text-[11px] font-bold uppercase tracking-[.18em] text-background transition-colors hover:bg-accent" data-testid="link-checkout">Continue to checkout <ArrowRight size={15} /></Link>
+              <Link href="/checkout" onClick={onClose} className="flex h-12 w-full items-center justify-center gap-3 bg-foreground text-[11px] font-bold uppercase tracking-[.18em] text-background transition-colors hover:bg-accent" data-testid="link-cart-checkout">Proceed to checkout <ArrowRight size={15} /></Link>
             </div>
           </>
         )}
@@ -610,14 +660,21 @@ function Checkout({ items, onSuccess }: { items: CartItem[]; onSuccess: (order: 
   const quote = useQuoteBundle();
   useEffect(() => {
     if (items.length > 0) {
-      quote.mutate({ data: { items: items.map(item => ({ productSlug: item.product.slug, size: item.size, quantity: item.quantity })) } });
+      quote.mutate({ data: { items: items.map(item => ({ productSlug: item.product.slug, variantId: item.variant.id, size: item.variant.size, quantity: item.quantity })) } });
     }
-  }, [items.map(i => i.product.slug + i.size + i.quantity).join(',')]);
+  }, [items.map(i => i.product.slug + i.variant.size + i.quantity).join(',')]);
 
   const [loyaltyPhone, setLoyaltyPhone] = useState('');
   const [loyaltyOrder, setLoyaltyOrder] = useState('');
   const loyalty = useLookupLoyalty();
   const [useWallet, setUseWallet] = useState(false);
+  
+  const maxWallet = loyalty.data?.walletCredit ?? 0;
+  const total = items.reduce((sum, item) => sum + (item.variant.price ?? item.product.price) * item.quantity, 0);
+  const quoteData = quote.data;
+  const displayTotal = quoteData?.total ?? total;
+  const discount = quoteData?.discount ?? 0;
+  
   const [walletAmount, setWalletAmount] = useState(0);
 
   const handleLoyaltyLookup = (e: FormEvent) => {
@@ -625,19 +682,11 @@ function Checkout({ items, onSuccess }: { items: CartItem[]; onSuccess: (order: 
     loyalty.mutate({ data: { phone: loyaltyPhone, orderNumber: loyaltyOrder } });
   };
 
-  const total = items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
-  const quoteData = quote.data;
-  const displayTotal = quoteData?.total ?? total;
-  const discount = quoteData?.discount ?? 0;
-  
-  const maxWallet = loyalty.data ? Math.min(loyalty.data.walletCredit, displayTotal) : 0;
-  const finalTotal = displayTotal - (useWallet ? walletAmount : 0);
-
-  const submit = (event: FormEvent) => { 
-    event.preventDefault(); 
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
     const orderData: any = {
       ...form, 
-      items: items.map((item) => ({ productSlug: item.product.slug, size: item.size, quantity: item.quantity }))
+      items: items.map((item) => ({ productSlug: item.product.slug, variantId: item.variant.id, size: item.variant.size, quantity: item.quantity }))
     };
     if (useWallet && walletAmount > 0 && loyalty.data?.verificationToken) {
       orderData.walletCreditToUse = walletAmount;
@@ -678,61 +727,45 @@ function Checkout({ items, onSuccess }: { items: CartItem[]; onSuccess: (order: 
             )}
           </form>
 
-          <form id="checkout-form" onSubmit={submit} className="max-w-xl">
-            <div className="grid gap-5 sm:grid-cols-2">
-              <label className="text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground sm:col-span-2">Full name<input required minLength={2} value={form.customerName} onChange={(event) => setForm({ ...form, customerName: event.target.value })} className="mt-2 h-12 w-full border-b border-border bg-transparent text-sm outline-none focus:border-accent" data-testid="input-customer-name" /></label>
-              <label className="text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground">Phone<input required minLength={8} value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="+962 7..." className="mt-2 h-12 w-full border-b border-border bg-transparent text-sm outline-none focus:border-accent" data-testid="input-customer-phone" /></label>
-              <label className="text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground">City<input required value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} className="mt-2 h-12 w-full border-b border-border bg-transparent text-sm outline-none focus:border-accent" data-testid="input-customer-city" /></label>
-              <label className="text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground sm:col-span-2">Delivery address<textarea required value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} rows={3} className="mt-2 w-full resize-none border-b border-border bg-transparent py-3 text-sm outline-none focus:border-accent" data-testid="input-customer-address" /></label>
+          <form id="checkout-form" onSubmit={handleSubmit} className="grid gap-8">
+            <div className="grid gap-6 sm:grid-cols-2">
+              <label className="text-[10px] font-bold uppercase tracking-[.15em] text-muted-foreground">Full name<input required minLength={2} value={form.customerName} onChange={(event) => setForm({ ...form, customerName: event.target.value })} className="mt-2 h-10 w-full border-b border-border bg-transparent text-sm outline-none focus:border-accent" data-testid="input-checkout-name" /></label>
+              <label className="text-[10px] font-bold uppercase tracking-[.15em] text-muted-foreground">Phone number<input required minLength={8} type="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className="mt-2 h-10 w-full border-b border-border bg-transparent text-sm outline-none focus:border-accent" data-testid="input-checkout-phone" /></label>
             </div>
-            <div className="mt-10">
-              <p className="mb-4 text-[10px] font-bold uppercase tracking-[.14em] text-muted-foreground">Payment method</p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button type="button" onClick={() => setForm({ ...form, paymentMethod: 'cod' })} className={`flex items-start gap-3 border p-4 text-left ${form.paymentMethod === 'cod' ? 'border-foreground' : 'border-border'}`} data-testid="button-payment-cod"><span className={`mt-0.5 h-3 w-3 rounded-full border ${form.paymentMethod === 'cod' ? 'border-foreground bg-foreground' : 'border-muted-foreground'}`} /><span><strong className="block text-sm">Cash on delivery</strong><small className="mt-1 block text-xs text-muted-foreground">Pay when your order arrives.</small></span></button>
-                <button type="button" onClick={() => setForm({ ...form, paymentMethod: 'prepaid' })} className={`flex items-start gap-3 border p-4 text-left ${form.paymentMethod === 'prepaid' ? 'border-foreground' : 'border-border'}`} data-testid="button-payment-prepaid"><span className={`mt-0.5 h-3 w-3 rounded-full border ${form.paymentMethod === 'prepaid' ? 'border-foreground bg-foreground' : 'border-muted-foreground'}`} /><span><strong className="block text-sm">Prepaid</strong><small className="mt-1 block text-xs text-muted-foreground">We will contact you to confirm.</small></span></button>
-              </div>
+            <label className="text-[10px] font-bold uppercase tracking-[.15em] text-muted-foreground">City<select required value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} className="mt-2 h-10 w-full border-b border-border bg-transparent text-sm outline-none focus:border-accent" data-testid="select-checkout-city"><option>Amman</option><option>Irbid</option><option>Zarqa</option><option>Aqaba</option><option>Salt</option><option>Madaba</option><option>Mafraq</option><option>Jerash</option><option>Ajloun</option><option>Karak</option><option>Tafileh</option><option>Maan</option><option>Aqaba</option></select></label>
+            <label className="text-[10px] font-bold uppercase tracking-[.15em] text-muted-foreground">Address details<textarea required minLength={5} rows={3} value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} className="mt-2 w-full border-b border-border bg-transparent py-2 text-sm outline-none focus:border-accent" placeholder="Street, building, apartment" data-testid="textarea-checkout-address" /></label>
+            <div className="space-y-4">
+              <p className="text-[10px] font-bold uppercase tracking-[.15em] text-muted-foreground">Payment method</p>
+              <label className="flex cursor-pointer items-center gap-4 border border-border p-4 transition-colors hover:border-accent"><input type="radio" name="payment" checked={form.paymentMethod === 'cod'} onChange={() => setForm({ ...form, paymentMethod: 'cod' })} className="accent-accent" data-testid="radio-payment-cod" /><div><p className="text-sm font-semibold">Cash on delivery</p><p className="mt-1 text-xs text-muted-foreground">Pay when your pieces arrive.</p></div></label>
+              <label className="flex cursor-pointer items-center gap-4 border border-border p-4 transition-colors hover:border-accent"><input type="radio" name="payment" checked={form.paymentMethod === 'prepaid'} onChange={() => setForm({ ...form, paymentMethod: 'prepaid' })} className="accent-accent" data-testid="radio-payment-prepaid" /><div><p className="text-sm font-semibold">CliQ / Mobile Wallet</p><p className="mt-1 text-xs text-muted-foreground">Fast and contactless.</p></div></label>
             </div>
-            {mutation.isError && <p className="mt-5 border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive" data-testid="status-checkout-error">We could not place the order. Please try again or reach us on WhatsApp.</p>}
-            <button disabled={mutation.isPending} className="mt-8 flex h-14 w-full items-center justify-center gap-3 bg-foreground text-[11px] font-bold uppercase tracking-[.18em] text-background hover:bg-accent disabled:opacity-50" data-testid="button-submit-order">{mutation.isPending ? 'Placing your order…' : 'Place order'} <ArrowRight size={15} /></button>
+            {mutation.isError && <div className="border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">Something went wrong. Please check your details and try again.</div>}
+            <button type="submit" disabled={mutation.isPending} className="mt-4 flex h-14 w-full items-center justify-center gap-3 bg-foreground text-[11px] font-bold uppercase tracking-[.18em] text-background transition-colors hover:bg-accent disabled:opacity-50" data-testid="button-submit-checkout">{mutation.isPending ? 'Confirming...' : 'Place order'} <ArrowRight size={16} /></button>
           </form>
         </div>
-
-        <aside className="h-fit border border-border bg-card p-6">
-          <p className="text-[10px] font-bold uppercase tracking-[.2em] text-accent">Order summary</p>
-          <div className="mt-5">
-            {items.map((item) => (
-              <div className="flex items-start justify-between gap-4 border-b border-border py-4 first:pt-0" key={`${item.product.id}-${item.size}`}>
-                <div>
-                  <p className="text-sm font-semibold">{item.product.name}</p>
-                  <p className="mt-1 text-[10px] uppercase tracking-[.13em] text-muted-foreground">Size {item.size} × {item.quantity}</p>
+        <div>
+          <div className="sticky top-28 border border-border bg-card p-6">
+            <h2 className="mb-6 text-[10px] font-bold uppercase tracking-[.2em] text-accent">Order summary</h2>
+            <div className="mb-6 space-y-4 border-b border-border pb-6">
+              {items.map((item) => (
+                <div className="flex justify-between gap-4" key={`${item.product.id}-${item.variant.id}`}>
+                  <div><p className="text-sm font-semibold">{item.product.name}</p><p className="mt-1 text-[10px] uppercase tracking-[.1em] text-muted-foreground">{item.variant.colorName} • Size {item.variant.size} • Qty {item.quantity}</p></div>
+                  <p className="font-mono text-xs">{money((item.variant.price ?? item.product.price) * item.quantity)}</p>
                 </div>
-                <span className="font-mono text-xs">{money(item.product.price * item.quantity)}</span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-5 space-y-3">
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>Subtotal</span>
-              <span className="font-mono">{money(total)}</span>
+              ))}
             </div>
-            {discount > 0 && (
-              <div className="flex items-center justify-between text-sm text-accent">
-                <span>Bundle Savings {quoteData?.appliedRule ? `(${quoteData.appliedRule})` : ''}</span>
-                <span className="font-mono">-{money(discount)}</span>
-              </div>
-            )}
-            {useWallet && (
-              <div className="flex items-center justify-between text-sm text-green-600">
-                <span>Wallet Credit Used</span>
-                <span className="font-mono">-{money(walletAmount)}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between border-t border-border pt-3">
-              <span className="text-xs uppercase tracking-[.14em] text-muted-foreground">Final Total</span>
-              <span className="font-mono text-lg">{money(finalTotal)}</span>
+            <div className="space-y-3 border-b border-border pb-6">
+              <div className="flex justify-between text-sm"><p className="text-muted-foreground">Subtotal</p><p className="font-mono">{money(total)}</p></div>
+              <div className="flex justify-between text-sm"><p className="text-muted-foreground">Delivery</p><p className="font-mono">Free</p></div>
+              {discount > 0 && <div className="flex justify-between text-sm text-accent"><p>Bundle savings</p><p className="font-mono">−{money(discount)}</p></div>}
+              {useWallet && walletAmount > 0 && <div className="flex justify-between text-sm text-accent"><p>Wallet credit applied</p><p className="font-mono">−{money(walletAmount)}</p></div>}
+            </div>
+            <div className="mt-6 flex justify-between">
+              <p className="font-semibold">Total</p>
+              <p className="font-mono font-semibold">{money(Math.max(0, displayTotal - (useWallet ? walletAmount : 0)))}</p>
             </div>
           </div>
-        </aside>
+        </div>
       </div>
     </main>
   );
@@ -749,7 +782,7 @@ function TrackOrder() {
 }
 
 function OrderResult({ order }: { order: Order }) {
-  const statuses = ['new', 'processing', 'packed', 'ready_to_ship', 'shipped'];
+  const statuses = ['new', 'confirmed', 'processing', 'packed', 'ready_to_ship', 'shipped', 'delivered'];
   const current = statuses.indexOf(order.status);
   return <div className="slide-in mt-5 border border-border bg-card p-6 sm:p-9" data-testid="status-order-result"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[.2em] text-accent">Order found</p><h2 className="mt-2 font-mono text-xl">{order.orderNumber}</h2></div><PackageCheck size={23} strokeWidth={1.2} className="text-accent" /></div><div className="my-8 grid grid-cols-5 gap-1">{statuses.map((status, index) => <div key={status}><div className={`h-1 ${index <= current ? 'bg-accent' : 'bg-muted'}`} /><p className={`mt-3 text-[8px] font-bold uppercase tracking-[.08em] ${index === current ? 'text-foreground' : 'text-muted-foreground'}`}>{status.replace('_', ' ')}</p></div>)}</div><div className="grid gap-4 border-t border-border pt-5 text-sm sm:grid-cols-2"><p><span className="block text-[10px] uppercase tracking-[.14em] text-muted-foreground">Delivering to</span>{order.city}</p><p><span className="block text-[10px] uppercase tracking-[.14em] text-muted-foreground">Total</span><span className="font-mono">{money(order.total)}</span></p></div></div>;
 }
@@ -801,10 +834,11 @@ function NotFoundPage() {
 function RouterContent({ cart, setCart, cartOpen, setCartOpen }: { cart: CartItem[]; setCart: (items: CartItem[]) => void; cartOpen: boolean; setCartOpen: (open: boolean) => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [success, setSuccess] = useState<Order>();
-  const add = (product: Product, chosenSize?: string) => {
-    const size = chosenSize ?? product.sizes[0] ?? 'One size';
-    const existing = cart.find((item) => item.product.id === product.id && item.size === size);
-    setCart(existing ? cart.map((item) => item === existing ? { ...item, quantity: item.quantity + 1 } : item) : [...cart, { product, size, quantity: 1 }]);
+  const add = (product: Product, variant?: import("@workspace/api-client-react").StorefrontVariant) => {
+    const selectedVariant = variant ?? product.variants.find((v) => v.stock > 0) ?? product.variants[0];
+    if (!selectedVariant) return;
+    const existing = cart.find((item) => item.product.id === product.id && item.variant.id === selectedVariant.id);
+    setCart(existing ? cart.map((item) => item === existing ? { ...item, quantity: item.quantity + 1 } : item) : [...cart, { product, variant: selectedVariant, quantity: 1 }]);
     setCartOpen(true);
   };
   const [location, setLocation] = useLocation();
@@ -926,7 +960,14 @@ function CartReminderPolling() {
 }
 
 function App() {
-  const [cart, setCartState] = useState<CartItem[]>(() => { try { return JSON.parse(localStorage.getItem('sulm-cart') ?? '[]') as CartItem[]; } catch { return []; } });
+  const [cart, setCartState] = useState<CartItem[]>(() => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem('sulm-cart') ?? '[]');
+      return parsed.filter((item: any) => item && item.product && item.variant && item.variant.id) as CartItem[];
+    } catch {
+      return [];
+    }
+  });
   const [cartOpen, setCartOpen] = useState(false);
   const setCart = (items: CartItem[]) => { setCartState(items); localStorage.setItem('sulm-cart', JSON.stringify(items)); };
   return <QueryClientProvider client={queryClient}><TooltipProvider><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><RouterContent cart={cart} setCart={setCart} cartOpen={cartOpen} setCartOpen={setCartOpen} /></WouterRouter><Toaster /><CartReminderPolling /></TooltipProvider></QueryClientProvider>;

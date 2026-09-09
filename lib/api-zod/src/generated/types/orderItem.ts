@@ -9,6 +9,10 @@
 export interface OrderItem {
   productName: string;
   productSlug: string;
+  variantId: number;
+  sku: string;
+  colorName: string;
+  colorHex: string;
   size: string;
   quantity: number;
   unitPrice: number;

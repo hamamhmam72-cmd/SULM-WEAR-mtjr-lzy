@@ -64,9 +64,6 @@ export interface AdminProductInput {
      */
   story: string;
   status: AdminProductInputStatus;
-  /**
-     * @minItems 1
-     * @maxItems 200
-     */
+  /** @minItems 1 */
   variants: AdminVariantInput[];
 }
