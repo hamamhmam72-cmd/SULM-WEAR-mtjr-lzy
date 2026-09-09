@@ -1,0 +1,31 @@
+Comprehensive System Diagnostic, Integration Audit & Admin Routing Prompt:
+
+Perform a rigorous, end-to-end diagnostic audit of the entire e-commerce web application, Order Management System (OMS), and admin backend to identify, isolate, and repair any broken, unresponsive, or disconnected features, while establishing explicit routing and visibility for the Inventory/Catalog Manager admin panel.
+
+1. Explicit Admin & Stock Manager Routing (/admin/catalog)
+
+Dedicated Backend URL & Access Point: Programmatically anchor the Catalog and Stock Manager control panel at a secure, distinct route (/admin/catalog or /admin/inventory-manager) clearly separated from customer-facing views.
+
+Manager Dashboard Visibility: Ensure the stock manager login redirects directly to this designated admin workspace, featuring full CRUD controls for adding apparel, modifying pricing, updating multi-color variations, and executing clean deletions.
+
+2. Frontend-to-Backend API Route Verification
+
+Endpoint Mapping Audit: Inspect every UI action, button click, dropdown selector, and form submission to ensure they map successfully to active backend API endpoints.
+
+Orphaned Component Resolution: Identify and fix any frontend elements (such as the Smart Fit Calculator, Loyalty Program, UGC feed, or size selectors) that fail to render data or trigger errors in the console due to missing backend logic or unhandled state.
+
+3. State Management & Real-Time Data Sync
+
+OMS Dashboard Integrity: Verify that the Kanban and table views dynamically update in real-time when orders change status, ensuring batch processing and multi-select functions execute without throwing exceptions.
+
+Inventory Deduction Loop: Test the real-time stock reduction trigger when an order shifts to "Processing" to guarantee that inventory counts decrement cleanly without race conditions.
+
+4. Admin Panel CRUD & RBAC Security Validation
+
+Catalog Manager Permissions: Audit the Role-Based Access Control (RBAC) middleware to ensure administrative users can successfully execute full CRUD operations (Create, Read, Update, Delete) for products, color variants, pricing, and precise millimeter size specifications from the dedicated /admin/catalog page.
+
+Database Cascading Deletes: Test product and variant deletion workflows to ensure records are completely and safely removed from the database without leaving orphaned foreign key constraints.
+
+5. Automated Error Logging & Self-Healing Diagnostics
+
+Console & Network Error Catching: Implement robust error-handling wrappers and fallback UI states for all network requests so that if any module fails, the application displays clear feedback instead of breaking silently.
