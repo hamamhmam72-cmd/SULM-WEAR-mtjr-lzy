@@ -120,11 +120,16 @@ export function AdminCatalog() {
   };
 
   const handleDelete = (id: number) => {
+    setMutError(null);
     deleteMut.mutate({ id }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetAdminProductsQueryKey() });
         setIsDeleting(null);
-      }
+      },
+      onError: (err: any) => {
+        setMutError(err?.error || "Failed to delete product. Archive products with order or inventory history.");
+        setIsDeleting(null);
+      },
     });
   };
 
@@ -339,6 +344,12 @@ export function AdminCatalog() {
       </div>
 
       <div className="flex-1 overflow-auto bg-background p-6">
+        {mutError && (
+          <div role="alert" className="mx-auto mb-4 flex max-w-6xl items-center gap-2 border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertCircle size={16} /> {mutError}
+            <button aria-label="Dismiss error" type="button" onClick={() => setMutError(null)} className="ml-auto"><X size={16} /></button>
+          </div>
+        )}
         {isLoading ? (
            <div className="flex justify-center py-12"><Loader2 className="animate-spin text-muted-foreground" /></div>
         ) : isProductsError ? (

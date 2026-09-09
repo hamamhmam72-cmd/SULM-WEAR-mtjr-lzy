@@ -148,7 +148,12 @@ function ClerkQueryClientCacheInvalidator() {
 function SignInPage() {
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 relative z-50">
-      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+      <SignIn
+        routing="path"
+        path={`${basePath}/sign-in`}
+        signUpUrl={`${basePath}/sign-up`}
+        forceRedirectUrl={`${basePath}/admin/catalog`}
+      />
     </div>
   );
 }
@@ -883,7 +888,7 @@ function RouterContent({ cart, setCart, cartOpen, setCartOpen }: { cart: CartIte
             <Route path="/sign-in/*?" component={SignInPage} />
             <Route path="/sign-up/*?" component={SignUpPage} />
             
-            <Route path="/admin" component={() => <AdminGuard><Navigate to="/admin/orders" /></AdminGuard>} />
+            <Route path="/admin" component={() => <AdminGuard><Navigate to="/admin/catalog" /></AdminGuard>} />
             <Route path="/admin/orders" component={() => <AdminGuard><AdminOrders /></AdminGuard>} />
             <Route path="/admin/catalog" component={() => <AdminGuard><AdminCatalog /></AdminGuard>} />
             <Route path="/admin/health" component={() => <AdminGuard><AdminSystemHealth /></AdminGuard>} />

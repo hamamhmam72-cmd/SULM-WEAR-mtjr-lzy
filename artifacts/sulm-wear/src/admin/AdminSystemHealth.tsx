@@ -2,7 +2,7 @@ import { useGetAdminSystemHealth, getGetAdminSystemHealthQueryKey } from "@works
 import { Activity, Server, ShieldCheck, AlertTriangle, Loader2 } from "lucide-react";
 
 export function AdminSystemHealth() {
-  const { data: health, isLoading } = useGetAdminSystemHealth({
+  const { data: health, isLoading, isError, refetch, isFetching } = useGetAdminSystemHealth({
     query: { queryKey: getGetAdminSystemHealthQueryKey(), refetchInterval: 30000 }
   });
 
@@ -14,7 +14,20 @@ export function AdminSystemHealth() {
     );
   }
 
-  if (!health) return null;
+  if (isError || !health) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
+        <AlertTriangle size={24} className="text-destructive" />
+        <div>
+          <h2 className="text-sm font-bold uppercase tracking-[.18em]">System health unavailable</h2>
+          <p className="mt-2 text-sm text-muted-foreground">The diagnostic service could not be reached. No system status was changed.</p>
+        </div>
+        <button type="button" disabled={isFetching} onClick={() => void refetch()} className="border border-border px-4 py-2 text-[10px] font-bold uppercase tracking-widest hover:bg-muted disabled:opacity-50">
+          {isFetching ? "Retrying…" : "Retry"}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col">
