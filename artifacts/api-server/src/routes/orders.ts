@@ -83,6 +83,7 @@ router.post("/orders", async (req, res): Promise<void> => {
       const variant = variants.find((candidate) => candidate.id === item.variantId);
       if (
         !product ||
+        product.status !== "active" ||
         !variant ||
         variant.productId !== product.id ||
         variant.size !== item.size ||

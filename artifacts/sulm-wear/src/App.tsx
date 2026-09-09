@@ -669,13 +669,17 @@ function Checkout({ items, onSuccess }: { items: CartItem[]; onSuccess: (order: 
   const loyalty = useLookupLoyalty();
   const [useWallet, setUseWallet] = useState(false);
   
-  const maxWallet = loyalty.data?.walletCredit ?? 0;
+  const availableWallet = loyalty.data?.walletCredit ?? 0;
   const total = items.reduce((sum, item) => sum + (item.variant.price ?? item.product.price) * item.quantity, 0);
   const quoteData = quote.data;
   const displayTotal = quoteData?.total ?? total;
   const discount = quoteData?.discount ?? 0;
+  const maxWallet = Math.min(availableWallet, displayTotal);
   
   const [walletAmount, setWalletAmount] = useState(0);
+  useEffect(() => {
+    if (useWallet) setWalletAmount(maxWallet);
+  }, [maxWallet, useWallet]);
 
   const handleLoyaltyLookup = (e: FormEvent) => {
     e.preventDefault();

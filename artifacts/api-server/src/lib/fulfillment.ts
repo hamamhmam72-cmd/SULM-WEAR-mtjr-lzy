@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { adminAuditLogsTable, inventoryLogsTable, ordersTable, productVariantsTable, productsTable } from "@workspace/db";
+import { adminAuditLogsTable, inventoryLogsTable, loyaltyAccountsTable, loyaltyEventsTable, ordersTable, productVariantsTable, productsTable } from "@workspace/db";
 
 export const legalTransitions: Record<string, string[]> = {
   new: ["confirmed", "canceled"], confirmed: ["processing", "canceled"],
@@ -55,6 +55,24 @@ export async function transitionOrder(tx: any, orderId: number, target: string, 
         stock: sql`(select coalesce(sum(stock), 0) from sulm_product_variants where product_id = ${productId})`,
         updatedAt: new Date(),
       }).where(eq(productsTable.id, productId));
+    }
+  }
+  if (target === "canceled" && order.status !== "canceled") {
+    const [purchaseEvent] = await tx.select().from(loyaltyEventsTable).where(and(
+      eq(loyaltyEventsTable.source, "purchase"),
+      eq(loyaltyEventsTable.reference, order.orderNumber),
+    )).for("update");
+    if (purchaseEvent?.status === "pending") {
+      const [account] = await tx.select().from(loyaltyAccountsTable)
+        .where(eq(loyaltyAccountsTable.id, purchaseEvent.accountId)).for("update");
+      if (!account) throw new Error("Loyalty account missing for canceled order");
+      await tx.update(loyaltyAccountsTable).set({
+        pendingPoints: Math.max(0, account.pendingPoints - purchaseEvent.points),
+        walletCredit: (Number(account.walletCredit) + Number(order.walletCreditUsed)).toFixed(2),
+        updatedAt: new Date(),
+      }).where(eq(loyaltyAccountsTable.id, account.id));
+      await tx.update(loyaltyEventsTable).set({ status: "canceled" })
+        .where(eq(loyaltyEventsTable.id, purchaseEvent.id));
     }
   }
   const now = new Date();
