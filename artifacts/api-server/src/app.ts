@@ -1,4 +1,4 @@
-import express, { type Express } from "express";
+import express, { type Express, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -12,20 +12,23 @@ import {
 } from "./middlewares/clerkProxyMiddleware";
 import { recordRouteMetric } from "./lib/systemDiagnostics";
 
+// تصحيح استيراد pino-http ليتوافق مع ES Modules و TypeScript
+const pinoMiddleware = (pinoHttp as any).default || pinoHttp;
+
 const app: Express = express();
 
 app.use(
-  pinoHttp({
+  pinoMiddleware({
     logger,
     serializers: {
-      req(req) {
+      req(req: any) {
         return {
           id: req.id,
           method: req.method,
           url: req.url?.split("?")[0],
         };
       },
-      res(res) {
+      res(res: any) {
         return {
           statusCode: res.statusCode,
         };
@@ -33,19 +36,23 @@ app.use(
     },
   }),
 );
+
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.use(cors({ credentials: true, origin: true }));
 app.use(express.json({ limit: "256kb" }));
 app.use(express.urlencoded({ extended: true }));
+
 app.use(
-  clerkMiddleware((req) => ({
+  clerkMiddleware((req: any) => ({
     publishableKey: publishableKeyFromHost(
       getClerkProxyHost(req) ?? "",
       process.env.CLERK_PUBLISHABLE_KEY,
     ),
   })),
 );
-app.use((req, res, next) => {
+
+// تحديد أنواع البيانات (Types) بوضوح لتجنب خطأ TS7006
+app.use((req: Request, res: Response, next: NextFunction) => {
   const startedAt = Date.now();
   res.on("finish", () => {
     const path = req.path
