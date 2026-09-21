@@ -1,4 +1,4 @@
-import { Router, type IRouter, Request, Response } from "express";
+import { Router, type IRouter } from "express";
 import { and, eq, ilike, sql } from "drizzle-orm";
 import {
   GetProductParams,
@@ -96,7 +96,7 @@ const toProduct = (product: typeof productsTable.$inferSelect, variants: any[]) 
   variants: variants.filter((v) => v.active).map((v) => ({ ...v, price: v.price == null ? null : Number(v.price), compareAtPrice: v.compareAtPrice == null ? null : Number(v.compareAtPrice), createdAt: undefined, updatedAt: undefined })),
 });
 
-router.get("/storefront/summary", async (req: Request, res: Response): Promise<void> => {
+router.get("/storefront/summary", async (req: any, res: any): Promise<void> => {
   await ensureSeeded();
   const [{ productCount }] = await db
     .select({ productCount: sql<number>`count(*)::int` })
@@ -111,7 +111,7 @@ router.get("/storefront/summary", async (req: Request, res: Response): Promise<v
   res.json(GetStorefrontSummaryResponse.parse(data));
 });
 
-router.get("/products", async (req: Request, res: Response): Promise<void> => {
+router.get("/products", async (req: any, res: any): Promise<void> => {
   await ensureSeeded();
   const parsed = GetProductsQueryParams.safeParse(req.query);
   if (!parsed.success) {
@@ -136,7 +136,7 @@ router.get("/products", async (req: Request, res: Response): Promise<void> => {
   res.json(GetProductsResponse.parse(await Promise.all(rows.map(async (p) => toProduct(p, await variantsFor(p.id))))));
 });
 
-router.get("/products/:slug", async (req: Request, res: Response): Promise<void> => {
+router.get("/products/:slug", async (req: any, res: any): Promise<void> => {
   await ensureSeeded();
   const parsed = GetProductParams.safeParse(req.params);
   if (!parsed.success) {
