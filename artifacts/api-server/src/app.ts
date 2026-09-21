@@ -13,7 +13,7 @@ import {
 import { recordRouteMetric } from "./lib/systemDiagnostics";
 
 // تصحيح استيراد pino-http ليتوافق مع ES Modules و TypeScript
-const pinoMiddleware = (pinoHttp as any).default || pinoHttp;
+const pinoMiddleware: any = (pinoHttp as any).default || pinoHttp;
 
 const app: Express = express();
 
