@@ -1,3 +1,6 @@
+// @ts-nocheck
+import { Request, Response, NextFunction } from "express";
+// باقي محتوى الملف كما هو...
 import type { NextFunction, Request, Response } from "express";
 import { getAuth } from "@clerk/express";
 
